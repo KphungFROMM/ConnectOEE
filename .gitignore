@@ -1,0 +1,50 @@
+# ===== .NET =====
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+artifacts/
+publish/
+*.binlog
+
+# ===== Node / Frontend =====
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+.eslintcache
+coverage/
+
+# ===== Environment / secrets =====
+.env
+.env.*
+!.env.example
+appsettings.Development.local.json
+secrets.json
+*.pfx
+*.key
+
+# ===== Logs =====
+logs/
+*.log
+
+# ===== OS =====
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ===== IDE =====
+.idea/
+*.swp
+
+# ===== Docker volumes (local data) =====
+.data/
+pgdata/
+
+# ===== Test-only PLC simulator (excluded from repo per project rules) =====
+Logix Simulator/

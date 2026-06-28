@@ -1,0 +1,44 @@
+# ConnectOEE - Agent & Project Memory
+
+This file is the entry point for any AI agent or developer working on **ConnectOEE**, an on-prem, fully browser-based OEE Accelerator platform. It is committed to git so it travels across every machine you work on.
+
+## What this project is
+
+A modern, intuitive, browser-based OEE (Overall Equipment Effectiveness) Accelerator that runs entirely on-prem on Windows (Windows Server, industrial PC, or standard PC). It provides real-time OEE, rich KPI/downtime analytics, multi-plant/line/department support, PLC connectivity (Rockwell EtherNet/IP first), a WYSIWYG dashboard builder, kiosk dashboards, a guided setup wizard, a historian, and reporting.
+
+## Locked decisions
+
+- **Backend:** .NET 8 (ASP.NET Core), hosted as a Windows Service.
+- **Frontend:** React 18 + TypeScript + Vite.
+- **Database:** PostgreSQL 16 + TimescaleDB (historian/time-series).
+- **Real-time:** SignalR (WebSockets).
+- **PLC (first real driver):** Rockwell EtherNet/IP via libplctag (.NET wrapper); a Mock/Simulator driver ships first.
+- **UX is the #1 priority:** zero learning curve for operators, dark/light mode, high contrast, touch-friendly, always show system/user/connection state.
+- The `Logix Simulator/` folder is for manual testing only. **Never reference it in code.**
+- **Branding:** product name is **ConnectOEE**. Use the official app icon everywhere (favicon, header/login, wizard, kiosk, PDF reports). Follow the ConnectOEE color scheme (white/light-gray surfaces, blue primary accent, muted gray text, consistent green/amber/red status colors) with light + dark themes - see [docs/01-product-overview-ux.md](docs/01-product-overview-ux.md#branding---color-scheme). Asset + tokens get imported into the repo in Phase 0.
+
+## Documentation map (read these in `docs/`)
+
+- [docs/README.md](docs/README.md) - documentation index and how to use it
+- [docs/01-product-overview-ux.md](docs/01-product-overview-ux.md) - product goals + intuitive UX principles
+- [docs/02-tech-stack.md](docs/02-tech-stack.md) - stack choices + justification
+- [docs/03-architecture.md](docs/03-architecture.md) - modules, projects, diagram
+- [docs/04-data-model.md](docs/04-data-model.md) - entities and relationships
+- [docs/05-rbac-security-audit.md](docs/05-rbac-security-audit.md) - roles, permissions, audit
+- [docs/06-oee-engine-metrics.md](docs/06-oee-engine-metrics.md) - OEE math + reliability/downtime metrics (MTTR, MTBF, MTTF, MTTD...)
+- [docs/07-shift-configuration.md](docs/07-shift-configuration.md) - shift patterns, calendar, runtime handling
+- [docs/08-plc-drivers-udt.md](docs/08-plc-drivers-udt.md) - driver abstraction, mock, Rockwell, UDT support
+- [docs/09-tag-browser-mapping.md](docs/09-tag-browser-mapping.md) - live tag browser + tag mapping UI
+- [docs/10-dashboards-widgets-templates.md](docs/10-dashboards-widgets-templates.md) - widget library + ready-to-go templates
+- [docs/11-wysiwyg-builder.md](docs/11-wysiwyg-builder.md) - drag-and-drop dashboard designer
+- [docs/12-historian-query-reporting.md](docs/12-historian-query-reporting.md) - historian, query engine, reports
+- [docs/13-startup-wizard.md](docs/13-startup-wizard.md) - 10-step guided setup
+- [docs/14-roadmap-phases.md](docs/14-roadmap-phases.md) - phased build roadmap (the source of truth for sequencing)
+
+## Working agreement for agents
+
+- Keep code modular and extensible (new drivers, widgets, plants, report types).
+- Comment only non-obvious industrial/OEE logic (loss attribution, ideal-rate math, fault debounce, shift-boundary handling).
+- Every change that touches the DB ships an EF Core migration.
+- Always surface connection/stale/updating state and user role + plant/line context in the UI.
+- Update the relevant `docs/*.md` when behavior or scope changes so memory stays accurate across machines.
