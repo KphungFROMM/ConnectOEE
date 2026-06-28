@@ -34,6 +34,7 @@ A modern, intuitive, browser-based OEE (Overall Equipment Effectiveness) Acceler
 - [docs/12-historian-query-reporting.md](docs/12-historian-query-reporting.md) - historian, query engine, reports
 - [docs/13-startup-wizard.md](docs/13-startup-wizard.md) - 10-step guided setup
 - [docs/14-roadmap-phases.md](docs/14-roadmap-phases.md) - phased build roadmap (the source of truth for sequencing)
+- [docs/MOVING-TO-ANOTHER-PC.md](docs/MOVING-TO-ANOTHER-PC.md) - how to continue the project on a different computer
 
 ## Working agreement for agents
 

@@ -22,6 +22,7 @@ Start with the root [AGENTS.md](../AGENTS.md) for the high-level summary and loc
 | [12-historian-query-reporting.md](12-historian-query-reporting.md) | Historian, query engine, reporting |
 | [13-startup-wizard.md](13-startup-wizard.md) | Guided startup wizard |
 | [14-roadmap-phases.md](14-roadmap-phases.md) | Phased build roadmap (sequencing source of truth) |
+| [MOVING-TO-ANOTHER-PC.md](MOVING-TO-ANOTHER-PC.md) | How to continue the project on a different computer |
 
 ## How to use
 
