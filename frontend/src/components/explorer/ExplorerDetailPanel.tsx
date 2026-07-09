@@ -24,6 +24,7 @@ import {
   ShiftContextBar,
   TopReasonChips,
 } from './ExplorerDetailSections'
+import { ExplorerPartsSection } from './ExplorerPartsSection'
 import { useAuth } from '../../lib/auth'
 import { Permissions } from '../../lib/permissions'
 import { liveMetricsForExplorerNode, machineNamesForLine, mergeKpiWithSnapshot, pickSnapshot, teepPctForExplorerNode } from './explorerKpi'
@@ -230,6 +231,13 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
         live={live}
         reliability={historian.reliability}
         teepPct={teepPctForExplorerNode(snapshots, node, tree)}
+        preferLive={range === 'shift'}
+      />
+
+      <ExplorerPartsSection
+        snapshots={scopedSnapshots}
+        historianSnapshot={historian.snapshot}
+        analyticsScope={analyticsScope}
         preferLive={range === 'shift'}
       />
 
