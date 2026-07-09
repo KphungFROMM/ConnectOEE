@@ -1,0 +1,16 @@
+Report,Downtime Pareto Report
+Scope,Plant: Main Plant
+From,2026-05-29 06:13:19Z
+To,2026-06-28 06:13:19Z
+Generated,2026-06-28 06:13:19Z
+OEE%,0.06
+Availability%,100.00
+Performance%,0.06
+Quality%,97.49
+Good,816
+Reject,21
+DowntimeMin,1.6
+
+Category,Kind,Reason,Count,Minutes
+Breakdown,Unplanned,(unattributed),1,1.27
+SmallStop,Unplanned,(unattributed),1,0.34

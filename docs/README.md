@@ -22,6 +22,8 @@ Start with the root [AGENTS.md](../AGENTS.md) for the high-level summary and loc
 | [12-historian-query-reporting.md](12-historian-query-reporting.md) | Historian, query engine, reporting |
 | [13-startup-wizard.md](13-startup-wizard.md) | Guided startup wizard |
 | [14-roadmap-phases.md](14-roadmap-phases.md) | Phased build roadmap (sequencing source of truth) |
+| [15-commissioning-qa.md](15-commissioning-qa.md) | Greenfield commissioning matrix and verification gate |
+| [16-factory-deployment-security.md](16-factory-deployment-security.md) | Factory floor TLS, network, secrets, security commissioning |
 | [MOVING-TO-ANOTHER-PC.md](MOVING-TO-ANOTHER-PC.md) | How to continue the project on a different computer |
 
 ## How to use

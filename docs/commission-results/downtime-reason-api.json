@@ -1,0 +1,115 @@
+{
+  "generatedAt": "2026-07-09T20:10:03.252Z",
+  "lineId": "4305f5eb-7501-43ea-a869-8868000e1c02",
+  "plantId": "7f3e323f-0eb3-4733-aa66-628762b7457d",
+  "results": [
+    {
+      "id": "0.1",
+      "phase": "setup",
+      "pass": true,
+      "notes": "Line \"Line 1\" (4305f5eb-7501-43ea-a869-8868000e1c02)"
+    },
+    {
+      "id": "1.1",
+      "phase": "P1",
+      "pass": true,
+      "notes": "23 unassigned event(s)"
+    },
+    {
+      "id": "1.2",
+      "phase": "P1",
+      "pass": true,
+      "notes": "Recent events: 20"
+    },
+    {
+      "id": "1.5",
+      "phase": "P1",
+      "pass": true,
+      "notes": "needsReason count=23"
+    },
+    {
+      "id": "2.1",
+      "phase": "P1",
+      "pass": true,
+      "notes": "Assign returned 204"
+    },
+    {
+      "id": "2.1b",
+      "phase": "P1",
+      "pass": true,
+      "notes": "Queue count decreased"
+    },
+    {
+      "id": "2.1c",
+      "phase": "P1",
+      "pass": true,
+      "notes": "Reason=\"Commission test — jam cleared\""
+    },
+    {
+      "id": "B4",
+      "phase": "P2",
+      "pass": true,
+      "notes": "Empty reason rejected"
+    },
+    {
+      "id": "5.2",
+      "phase": "P2",
+      "pass": true,
+      "notes": "PATCH correct OK"
+    },
+    {
+      "id": "5.5",
+      "phase": "P2",
+      "pass": true,
+      "notes": "Audit contains downtime.reason entries"
+    },
+    {
+      "id": "3.1",
+      "phase": "P2",
+      "pass": true,
+      "notes": "Pending catalog stubs: 0"
+    },
+    {
+      "id": "6.operator",
+      "phase": "P1",
+      "pass": true,
+      "notes": "operator seeded — first-login password change required"
+    },
+    {
+      "id": "6.supervisor",
+      "phase": "P1",
+      "pass": true,
+      "notes": "supervisor seeded — first-login password change required"
+    },
+    {
+      "id": "6.manager",
+      "phase": "P1",
+      "pass": true,
+      "notes": "manager seeded — first-login password change required"
+    },
+    {
+      "id": "6.1",
+      "phase": "P1",
+      "pass": true,
+      "notes": "Operator account seeded"
+    },
+    {
+      "id": "5.1",
+      "phase": "P2",
+      "pass": true,
+      "notes": "Event in historian"
+    },
+    {
+      "id": "B1",
+      "phase": "P2",
+      "pass": true,
+      "notes": "Confirmed by code review: ApplyResolvedReason only on DowntimeToAdd (event open)"
+    },
+    {
+      "id": "B2",
+      "phase": "P2",
+      "pass": true,
+      "notes": "Confirmed by code review: close path does not backfill reason"
+    }
+  ]
+}

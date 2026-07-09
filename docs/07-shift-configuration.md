@@ -14,8 +14,9 @@ Shifts are a core time dimension: nearly every aggregate, report, and downtime/l
 ## Runtime handling
 
 - A **shift resolver** determines the active `ShiftInstance` for any timestamp/line, materializing instances ahead of time and at shift boundaries.
-- **Shift-boundary events** - at each rollover the engine closes the prior `ShiftInstance` (finalizes shift OEE/counts/downtime), opens the next, and emits a SignalR event so dashboards reset shift tiles live and the daily/shift report can fire.
-- **Counter handling at boundary** - shift-scoped good/reject/downtime computed as deltas so a continuously running line attributes production to the correct shift even across midnight.
+- **Planned production time (OEE Availability denominator)** is computed from the materialized shift window (`ShiftInstance.StartUtc`/`EndUtc`), the **active shift definition's** break/lunch windows, plant **calendar** exclusions (holiday/non-working/planned-down), and **planned downtime** events — not from a generic 8 h default or a runtime sum shortcut. Live accrual pauses during scheduled breaks so lunch does not count as unplanned downtime.
+- **Shift-boundary events** - at each rollover the engine closes the prior `ShiftInstance` (finalizes shift OEE/counts/downtime using the same calendar-based planned time formula), opens the next, and emits a SignalR event so dashboards reset shift tiles live and the daily/shift report can fire.
+- **Counter handling at boundary** - shift-scoped good/reject are maintained by the software production counter engine and reset to zero at each shift rollover. PLC counter resets during a shift do not affect ConnectOEE shift totals (see 06).
 - **Downtime spanning a boundary** - a stop crossing a shift change is split and attributed proportionally to each shift.
 - Mid-shift config changes are versioned (effective-dated) and never retro-rewrite already-closed shift aggregates.
 

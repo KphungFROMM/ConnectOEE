@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ConnectOEE.Api/ConnectOEE.Api.csproj" />
+    <Project Path="src/ConnectOEE.Core/ConnectOEE.Core.csproj" />
+    <Project Path="src/ConnectOEE.Drivers/ConnectOEE.Drivers.csproj" />
+    <Project Path="src/ConnectOEE.Historian/ConnectOEE.Historian.csproj" />
+    <Project Path="src/ConnectOEE.Infrastructure/ConnectOEE.Infrastructure.csproj" />
+    <Project Path="src/ConnectOEE.Reporting/ConnectOEE.Reporting.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ConnectOEE.Tests/ConnectOEE.Tests.csproj" />
+  </Folder>
+</Solution>

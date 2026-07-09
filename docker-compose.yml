@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: connectoee-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-connectoee}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-connectoee_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-connectoee}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-connectoee} -d ${POSTGRES_DB:-connectoee}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

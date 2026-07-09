@@ -36,6 +36,28 @@ Stored measures:
 - KPI snapshots.
 - Trend queries.
 
+### Historian REST API (`/api/historian`)
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET snapshot` | KPI roll-up for any `level` + `id` and date range |
+| `GET trend` | OEE/APQ time series with resolved granularity |
+| `GET production` | Good/reject/target buckets |
+| `GET drilldown` | Child entities with KPIs |
+| `GET reliability-trend` | MTTR/MTBF/stops-per-hour buckets |
+| `GET reasons` | Downtime reasons aggregated at **any** scope (`level`+`id`) or legacy `lineId` |
+| `GET losses` | Six Big Losses buckets at any scope |
+| `GET events` | Paginated downtime events for drill-through (`take`, optional `category`) |
+
+### Analytics & History page
+
+The `/analytics` screen uses the historian API for all scopes (including plant-wide downtime):
+
+- Sticky filter bar: plant/dept/line/machine dropdowns, breadcrumb, presets + custom date range, granularity, compare-to-prior toggle.
+- KPI hero: OEE gauge, A/P/Q factors, loss minutes, scrap/FPY, reliability summary.
+- Tabs: **Overview** (OEE trend, production, waterfall, losses donut, drill-down), **Downtime** (Pareto, reasons, events drawer with PLC needs-review badges), **Production**, **Reliability**.
+- Export CSV (snapshot + trend); deep-link to Reports and Plant Explorer with the same scope.
+
 ## 4. Downtime analysis
 
 - Top reasons; top categories.

@@ -89,3 +89,9 @@ These become the design tokens defined in Phase 0 (`frontend/theme/`). Hex value
 - Info / selected: brand blue (as above)
 
 These status colors are used consistently for line/machine status lights, Andon widgets, connection indicators, gauge thresholds, and KPI alarm coloring so meaning is uniform everywhere.
+
+## Plant Explorer vs Analytics
+
+- **Plant Explorer** is the live operational cockpit: current shift, SignalR machine snapshots, time-balance donut (uptime vs downtime), OEE waterfall, and recent downtime events. Default view is shift-to-date with optional last-8h toggle.
+- **Analytics** is the historical analysis workspace: longer ranges, compare periods, exports, supervisor reason correction, and full tabbed drill-down.
+- Both share chart components (OEE trend, loss pareto, production) but Explorer prioritizes **live-now** metrics in the hero row; Analytics prioritizes range comparison and reporting.

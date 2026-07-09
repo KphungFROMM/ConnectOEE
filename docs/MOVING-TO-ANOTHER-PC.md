@@ -83,9 +83,13 @@ cd ..
 
 ---
 
-## 5. Database note (no Docker)
+## 5. Database note
 
-The plan originally used Docker Compose for PostgreSQL + TimescaleDB, but Docker may not run in some VM environments. On a machine without Docker, install PostgreSQL + TimescaleDB natively:
+This machine runs the dev database via **Docker Compose** (`docker compose up -d`),
+using the `timescale/timescaledb:latest-pg16` image. The host port is **5433** (to avoid
+clashing with any other local Postgres on 5432); see `docker-compose.yml` and `.env.example`.
+
+On a machine without Docker, install PostgreSQL + TimescaleDB natively instead:
 
 - PostgreSQL: https://www.postgresql.org/download/windows/
 - TimescaleDB (Windows): https://docs.timescale.com/self-hosted/latest/install/installation-windows/
