@@ -1,9 +1,11 @@
 using ConnectOEE.Api.Auth;
 using ConnectOEE.Api.Live;
+using ConnectOEE.Api.Services;
 using ConnectOEE.Core;
 using ConnectOEE.Core.Abstractions;
 using ConnectOEE.Core.Entities;
 using ConnectOEE.Core.Entities.Security;
+using ConnectOEE.Core.Licensing;
 using ConnectOEE.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,12 +26,14 @@ public class PlcController : ControllerBase
     private readonly ConnectOeeDbContext _db;
     private readonly IAuditService _audit;
     private readonly DriverRegistry _registry;
+    private readonly ILicenseService _license;
 
-    public PlcController(ConnectOeeDbContext db, IAuditService audit, DriverRegistry registry)
+    public PlcController(ConnectOeeDbContext db, IAuditService audit, DriverRegistry registry, ILicenseService license)
     {
         _db = db;
         _audit = audit;
         _registry = registry;
+        _license = license;
     }
 
     public record ConnectionDto(Guid Id, string Name, string DriverType, string? Endpoint, string? Path,
@@ -54,6 +58,9 @@ public class PlcController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.Name)) return BadRequest(new { message = "Name is required" });
 
+        var rockwell = LicenseEnforcement.CheckRockwellDriver(_license, req.DriverType);
+        if (rockwell is not null) return rockwell;
+
         var conn = new PlcConnection
         {
             Name = req.Name.Trim(),
@@ -77,7 +84,12 @@ public class PlcController : ControllerBase
         var conn = await _db.PlcConnections.FirstOrDefaultAsync(c => c.Id == id);
         if (conn is null) return NotFound();
         conn.Name = req.Name.Trim();
-        if (Enum.TryParse<DriverType>(req.DriverType, out var dt)) conn.DriverType = dt;
+        if (Enum.TryParse<DriverType>(req.DriverType, out var dt))
+        {
+            var rockwell = LicenseEnforcement.CheckRockwellDriver(_license, req.DriverType);
+            if (rockwell is not null) return rockwell;
+            conn.DriverType = dt;
+        }
         conn.Endpoint = req.Endpoint?.Trim();
         conn.Path = req.Path?.Trim();
         conn.PollIntervalMs = req.PollIntervalMs ?? conn.PollIntervalMs;

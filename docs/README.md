@@ -24,6 +24,7 @@ Start with the root [AGENTS.md](../AGENTS.md) for the high-level summary and loc
 | [14-roadmap-phases.md](14-roadmap-phases.md) | Phased build roadmap (sequencing source of truth) |
 | [15-commissioning-qa.md](15-commissioning-qa.md) | Greenfield commissioning matrix and verification gate |
 | [16-factory-deployment-security.md](16-factory-deployment-security.md) | Factory floor TLS, network, secrets, security commissioning |
+| [17-licensing.md](17-licensing.md) | Offline license keys, trial limits, activation |
 | [MOVING-TO-ANOTHER-PC.md](MOVING-TO-ANOTHER-PC.md) | How to continue the project on a different computer |
 
 ## How to use

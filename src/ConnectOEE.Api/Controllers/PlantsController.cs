@@ -3,6 +3,7 @@ using ConnectOEE.Api.Services;
 using ConnectOEE.Core.Abstractions;
 using ConnectOEE.Core.Entities;
 using ConnectOEE.Core.Entities.Security;
+using ConnectOEE.Core.Licensing;
 using ConnectOEE.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,12 +19,15 @@ public class PlantsController : ControllerBase
     private readonly ConnectOeeDbContext _db;
     private readonly IAuditService _audit;
     private readonly HierarchyDeleteGuardService _deleteGuard;
+    private readonly ILicenseService _license;
 
-    public PlantsController(ConnectOeeDbContext db, IAuditService audit, HierarchyDeleteGuardService deleteGuard)
+    public PlantsController(ConnectOeeDbContext db, IAuditService audit, HierarchyDeleteGuardService deleteGuard,
+        ILicenseService license)
     {
         _db = db;
         _audit = audit;
         _deleteGuard = deleteGuard;
+        _license = license;
     }
 
     public record PlantDto(Guid Id, string Name, string? Code, string TimeZoneId, string? Location);
@@ -53,6 +57,9 @@ public class PlantsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             return BadRequest(new { message = "Name is required" });
+
+        var limit = await LicenseEnforcement.CheckPlantLimitAsync(_db, _license);
+        if (limit is not null) return limit;
 
         var plant = new Plant
         {

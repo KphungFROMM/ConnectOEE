@@ -5,6 +5,7 @@ using ConnectOEE.Core;
 using ConnectOEE.Core.Abstractions;
 using ConnectOEE.Core.Entities;
 using ConnectOEE.Core.Entities.Security;
+using ConnectOEE.Core.Licensing;
 using ConnectOEE.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,19 +28,22 @@ public class HierarchyController : ControllerBase
     private readonly ChangeoverService _changeover;
     private readonly IAuditService _audit;
     private readonly HierarchyDeleteGuardService _deleteGuard;
+    private readonly ILicenseService _license;
 
     public HierarchyController(
         ConnectOeeDbContext db,
         SnapshotCache cache,
         ChangeoverService changeover,
         IAuditService audit,
-        HierarchyDeleteGuardService deleteGuard)
+        HierarchyDeleteGuardService deleteGuard,
+        ILicenseService license)
     {
         _db = db;
         _cache = cache;
         _changeover = changeover;
         _audit = audit;
         _deleteGuard = deleteGuard;
+        _license = license;
     }
 
     public record NodeKpi(double OeePct, double AvailabilityPct, double PerformancePct, double QualityPct,
@@ -296,6 +300,9 @@ public class HierarchyController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.Name)) return BadRequest(new { message = "Name is required" });
         if (!await _db.Departments.AnyAsync(d => d.Id == req.DepartmentId)) return BadRequest(new { message = "Department not found" });
+
+        var limit = await LicenseEnforcement.CheckLineLimitAsync(_db, _license);
+        if (limit is not null) return limit;
 
         var rate = req.IdealRatePerHour ?? 1800;
         var line = new Line

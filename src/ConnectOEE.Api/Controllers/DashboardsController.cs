@@ -1,10 +1,12 @@
 using System.Text.Json;
 using ConnectOEE.Api.Auth;
 using ConnectOEE.Api.Live;
+using ConnectOEE.Api.Services;
 using ConnectOEE.Core;
 using ConnectOEE.Core.Abstractions;
 using ConnectOEE.Core.Entities;
 using ConnectOEE.Core.Entities.Security;
+using ConnectOEE.Core.Licensing;
 using ConnectOEE.Infrastructure;
 using ConnectOEE.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Authorization;
@@ -23,15 +25,18 @@ public class DashboardsController : ControllerBase
     private readonly SnapshotCache _cache;
     private readonly KioskTokenService _kioskTokens;
     private readonly SecurityOptions _security;
+    private readonly ILicenseService _license;
 
     public DashboardsController(ConnectOeeDbContext db, IAuditService audit, SnapshotCache cache,
-        KioskTokenService kioskTokens, Microsoft.Extensions.Options.IOptions<SecurityOptions> security)
+        KioskTokenService kioskTokens, Microsoft.Extensions.Options.IOptions<SecurityOptions> security,
+        ILicenseService license)
     {
         _db = db;
         _audit = audit;
         _cache = cache;
         _kioskTokens = kioskTokens;
         _security = security.Value;
+        _license = license;
     }
 
     public record WidgetDto(Guid Id, string Type, string? Title, int X, int Y, int W, int H,
@@ -248,6 +253,12 @@ public class DashboardsController : ControllerBase
     [HasPermission(PermissionKeys.BuildDashboards)]
     public async Task<ActionResult<DashboardDto>> Create([FromBody] SaveDashboardRequest req)
     {
+        if (Enum.TryParse<DashboardScope>(req.Scope, out var createScope) && createScope == DashboardScope.PublicKiosk)
+        {
+            var kioskLimit = await LicenseEnforcement.CheckKioskLimitAsync(_db, _license);
+            if (kioskLimit is not null) return kioskLimit;
+        }
+
         var dashboard = new Dashboard
         {
             Name = req.Name.Trim(),
@@ -284,7 +295,15 @@ public class DashboardsController : ControllerBase
         if (d is null) return NotFound();
 
         d.Name = req.Name.Trim();
-        if (Enum.TryParse<DashboardScope>(req.Scope, out var sc)) d.Scope = sc;
+        if (Enum.TryParse<DashboardScope>(req.Scope, out var sc))
+        {
+            if (sc == DashboardScope.PublicKiosk && d.Scope != DashboardScope.PublicKiosk)
+            {
+                var kioskLimit = await LicenseEnforcement.CheckKioskLimitAsync(_db, _license);
+                if (kioskLimit is not null) return kioskLimit;
+            }
+            d.Scope = sc;
+        }
         if (req.IsPublished.HasValue) d.IsPublished = req.IsPublished.Value;
         if (d.Scope == DashboardScope.PublicKiosk && req.IsPublished == true && req.LineId is null)
             return BadRequest(new { message = "Public kiosk dashboards require a line binding before publish." });

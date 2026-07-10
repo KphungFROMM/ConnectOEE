@@ -1,7 +1,9 @@
 using ConnectOEE.Api.Auth;
+using ConnectOEE.Api.Services;
 using ConnectOEE.Core;
 using ConnectOEE.Core.Entities;
 using ConnectOEE.Core.Entities.Security;
+using ConnectOEE.Core.Licensing;
 using ConnectOEE.Historian;
 using ConnectOEE.Infrastructure;
 using ConnectOEE.Reporting;
@@ -24,12 +26,15 @@ public class ReportsController : ControllerBase
     private readonly ConnectOeeDbContext _db;
     private readonly ReportService _reports;
     private readonly ReportDeliveryService _delivery;
+    private readonly ILicenseService _license;
 
-    public ReportsController(ConnectOeeDbContext db, ReportService reports, ReportDeliveryService delivery)
+    public ReportsController(ConnectOeeDbContext db, ReportService reports, ReportDeliveryService delivery,
+        ILicenseService license)
     {
         _db = db;
         _reports = reports;
         _delivery = delivery;
+        _license = license;
     }
 
     // ----- Templates -----
@@ -99,6 +104,9 @@ public class ReportsController : ControllerBase
     [HasPermission(PermissionKeys.ViewReports)]
     public async Task<IActionResult> Preview([FromBody] GenerateRequest req, CancellationToken ct)
     {
+        var pdf = LicenseEnforcement.CheckPdfReports(_license, req.Format);
+        if (pdf is not null) return pdf;
+
         var report = await _reports.GenerateAsync(req.TemplateId, req.Level, req.ScopeId, req.RangeKind,
             req.Format, triggeredBy: User.Identity?.Name, scheduleId: null,
             customFrom: req.FromUtc, customTo: req.ToUtc, persist: false, ct);
@@ -110,6 +118,9 @@ public class ReportsController : ControllerBase
     [HasPermission(PermissionKeys.ViewReports)]
     public async Task<IActionResult> Generate([FromBody] GenerateRequest req, CancellationToken ct)
     {
+        var pdf = LicenseEnforcement.CheckPdfReports(_license, req.Format);
+        if (pdf is not null) return pdf;
+
         var report = await _reports.GenerateAsync(req.TemplateId, req.Level, req.ScopeId, req.RangeKind,
             req.Format, triggeredBy: User.Identity?.Name, scheduleId: null,
             customFrom: req.FromUtc, customTo: req.ToUtc, persist: true, ct);
@@ -177,6 +188,9 @@ public class ReportsController : ControllerBase
     [HasPermission(PermissionKeys.ManageReports)]
     public async Task<ActionResult<ScheduleDto>> CreateSchedule([FromBody] ScheduleUpsert req, CancellationToken ct)
     {
+        var scheduled = LicenseEnforcement.CheckScheduledReports(_license);
+        if (scheduled is not null) return scheduled;
+
         var s = new ReportSchedule();
         Apply(s, req);
         s.NextRunUtc = Api.Reporting.ReportSchedulerWorker.ComputeNextRun(s, DateTimeOffset.UtcNow);

@@ -6,6 +6,7 @@ using ConnectOEE.Api.Middleware;
 using ConnectOEE.Api.Services;
 using ConnectOEE.Api.Live;
 using ConnectOEE.Core.Abstractions;
+using ConnectOEE.Core.Licensing;
 using ConnectOEE.Infrastructure;
 using ConnectOEE.Infrastructure.Auditing;
 using ConnectOEE.Infrastructure.Security;
@@ -121,6 +122,14 @@ try
         });
 
     services.AddScoped<ISetupStateService, SetupStateService>();
+
+    var licenseDataPath = Path.Combine(builder.Environment.ContentRootPath, "data");
+    LicenseStore.Configure(licenseDataPath);
+#if DEBUG
+    services.AddSingleton<ILicenseService, PersonalLicenseService>();
+#else
+    services.AddSingleton<ILicenseService, LicenseService>();
+#endif
 
     services.AddAuthorization(options =>
     {

@@ -115,14 +115,23 @@ export function driverRequiresPath(profile: PlcConnectionProfile): boolean {
 }
 
 /** Grouped Mantine Select data; unimplemented drivers appear disabled with a coming-soon suffix. */
-export function plcDriverSelectData(): { group: string; items: { value: string; label: string; disabled?: boolean }[] }[] {
+export function plcDriverSelectData(options?: { rockwellDriverEnabled?: boolean }): {
+  group: string
+  items: { value: string; label: string; disabled?: boolean }[]
+}[] {
+  const rockwellEnabled = options?.rockwellDriverEnabled ?? true
   const groups = new Map<string, { value: string; label: string; disabled?: boolean }[]>()
   for (const d of PLC_DRIVER_CATALOG) {
     const items = groups.get(d.group) ?? []
+    const isRockwell = d.value === 'RockwellEthernetIp'
+    const disabled = !d.implemented || (isRockwell && !rockwellEnabled)
+    let label = d.label
+    if (!d.implemented) label = `${d.label} (coming soon)`
+    else if (isRockwell && !rockwellEnabled) label = `${d.label} (full license required)`
     items.push({
       value: d.value,
-      label: d.implemented ? d.label : `${d.label} (coming soon)`,
-      disabled: !d.implemented,
+      label,
+      disabled,
     })
     groups.set(d.group, items)
   }

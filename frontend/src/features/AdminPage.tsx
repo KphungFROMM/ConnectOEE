@@ -12,6 +12,7 @@ import {
   IconAdjustments,
   IconLayoutGrid,
   IconComponents,
+  IconKey,
 } from '@tabler/icons-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { HierarchyEditor, PlcEditor, TagMappingEditor } from '../components/admin/editors'
@@ -19,6 +20,7 @@ import { ShiftAdmin } from '../components/admin/ShiftAdmin'
 import { SystemAdmin } from '../components/admin/SystemAdmin'
 import { AuditAdmin } from '../components/admin/AuditAdmin'
 import { DowntimeReasonsAdmin } from '../components/admin/DowntimeReasonsAdmin'
+import { LicenseAdmin } from '../components/admin/LicenseAdmin'
 import { UsersAdmin } from '../components/admin/UsersAdmin'
 import { RecipesAdmin } from '../components/admin/RecipesAdmin'
 import { ControlTagsAdmin } from '../components/admin/ControlTagsAdmin'
@@ -117,6 +119,9 @@ export function AdminPage() {
               Audit
             </Tabs.Tab>
           ) : null}
+          <Tabs.Tab value="license" leftSection={<IconKey size={16} />}>
+            License
+          </Tabs.Tab>
           {canViewGalleries ? (
             <Tabs.Tab value="templates" leftSection={<IconLayoutGrid size={16} />}>
               Template Gallery
@@ -165,6 +170,9 @@ export function AdminPage() {
             <AuditAdmin />
           </Tabs.Panel>
         ) : null}
+        <Tabs.Panel value="license" pt="md">
+          <LicenseAdmin />
+        </Tabs.Panel>
         {canViewGalleries ? (
           <Tabs.Panel value="templates" pt="md">
             <TemplateAuditGallery embedded />

@@ -56,6 +56,7 @@ import {
   type SignalDto,
 } from '../../lib/admin'
 import { getHierarchyTree, type PlantNode } from '../../lib/hierarchy'
+import { getLicenseStatus } from '../../lib/license'
 import {
   DEFAULT_PLC_DRIVER,
   driverRequiresEndpoint,
@@ -602,11 +603,12 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
   const [editConn, setEditConn] = useState<PlcConnection | null>(null)
   const [nameTouched, setNameTouched] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [rockwellDriverEnabled, setRockwellDriverEnabled] = useState(true)
 
   const driverDef = getPlcDriver(driverType)
   const needsEndpoint = driverRequiresEndpoint(driverDef.profile)
   const needsPath = driverRequiresPath(driverDef.profile)
-  const driverOptions = plcDriverSelectData()
+  const driverOptions = plcDriverSelectData({ rockwellDriverEnabled })
 
   const reload = () => {
     void listConnections().then(setConns).catch(() => undefined)
@@ -614,6 +616,9 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
   }
   useEffect(() => {
     reload()
+    void getLicenseStatus()
+      .then((s) => setRockwellDriverEnabled(s.rockwellDriverEnabled))
+      .catch(() => undefined)
     const t = setInterval(() => {
       void getDriverStatus().then(setDriverHealth).catch(() => undefined)
     }, 10_000)

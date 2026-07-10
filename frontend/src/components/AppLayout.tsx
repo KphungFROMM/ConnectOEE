@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   AppShell,
+  Alert,
   Burger,
   Group,
   NavLink,
@@ -11,6 +12,7 @@ import {
   useComputedColorScheme,
   Badge,
   Box,
+  Button,
   Menu,
   Avatar,
   UnstyledButton,
@@ -40,6 +42,7 @@ import { HelpDrawer } from './help/HelpDrawer'
 import { useAuth } from '../lib/auth'
 import { Permissions, isOperatorOnly } from '../lib/permissions'
 import { getSetupStatus } from '../lib/setup'
+import { getLicenseStatus, licenseBadgeColor, type LicenseStatus } from '../lib/license'
 
 function ThemeToggle() {
   const { setColorScheme } = useMantineColorScheme()
@@ -63,17 +66,22 @@ export function AppLayout() {
   const location = useLocation()
   const { status, lastChecked } = useConnectionState()
   const { user, logout, hasPermission } = useAuth()
+  const canOpenAdmin = hasPermission(Permissions.ManageUsers)
   const computed = useComputedColorScheme('light')
   const isDark = computed === 'dark'
 
   useClientPresence()
 
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
+  const [license, setLicense] = useState<LicenseStatus | null>(null)
 
   useEffect(() => {
     void getSetupStatus()
       .then((s) => setNeedsSetup(s.needsSetup))
       .catch(() => setNeedsSetup(false))
+    void getLicenseStatus()
+      .then(setLicense)
+      .catch(() => undefined)
   }, [])
 
   // Nav items gated by permission. Operators only see Operator Station.
@@ -219,6 +227,37 @@ export function AppLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
+        {license && (license.edition === 'Trial' || license.edition === 'Expired') ? (
+          <Alert
+            color={license.edition === 'Expired' ? 'red' : 'yellow'}
+            variant="light"
+            mb="md"
+            title={license.edition === 'Expired' ? 'License expired' : 'Trial mode'}
+          >
+            <Group justify="space-between" align="flex-start" wrap="wrap" gap="sm">
+              <Text size="sm" style={{ flex: 1 }}>
+                {license.edition === 'Expired'
+                  ? 'ConnectOEE requires a license to unlock all features.'
+                  : `${license.trialDaysRemaining} day(s) left in trial — limited to ${license.maxPlants} plant, ${license.maxLines} lines, Mock driver, and CSV reports.`}
+              </Text>
+              {canOpenAdmin ? (
+                <Button
+                  component={Link}
+                  to="/admin?tab=license"
+                  size="xs"
+                  variant={license.edition === 'Expired' ? 'filled' : 'light'}
+                  color={license.edition === 'Expired' ? 'red' : 'yellow'}
+                >
+                  {license.edition === 'Expired' ? 'Activate license' : 'View license'}
+                </Button>
+              ) : (
+                <Text size="xs" c="dimmed">
+                  Ask an administrator to activate a license in Admin → License.
+                </Text>
+              )}
+            </Group>
+          </Alert>
+        ) : null}
         <Outlet />
       </AppShell.Main>
 
@@ -226,6 +265,24 @@ export function AppLayout() {
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group gap={6} wrap="nowrap">
             <Text size="xs">Signed in as {user?.userName}</Text>
+            {license ? (
+              canOpenAdmin ? (
+                <Badge
+                  size="xs"
+                  variant="light"
+                  color={licenseBadgeColor(license.edition)}
+                  component={Link}
+                  to="/admin?tab=license"
+                  style={{ cursor: 'pointer' }}
+                >
+                  {license.editionDisplay}
+                </Badge>
+              ) : (
+                <Badge size="xs" variant="light" color={licenseBadgeColor(license.edition)}>
+                  {license.editionDisplay}
+                </Badge>
+              )
+            ) : null}
             {user?.roles.map((r) => (
               <Badge key={r} size="xs" variant="light">
                 {r}
