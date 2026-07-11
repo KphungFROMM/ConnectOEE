@@ -23,7 +23,7 @@ Shifts are a core time dimension: nearly every aggregate, report, and downtime/l
 ## UI
 
 - Wizard Step 8 and an Admin "Shifts" screen: build/edit patterns, definitions, breaks; assign to plant/line; manage calendar/holidays; preview the resolved weekly schedule grid; assign crews.
-- Current shift + time-remaining shown in dashboard context/header.
+- Current shift + time-remaining shown in **scoped** workspaces (Plant Explorer, Operator Station, Analytics filter bar, dashboard shift widgets) — never as a global app-header chip (plants can run different calendars/time zones).
 
 ## Open defaults (confirm)
 

@@ -26,6 +26,7 @@ import { DowntimeTab } from '../components/analytics/DowntimeTab'
 import { ProductionTab } from '../components/analytics/ProductionTab'
 import { ReliabilityTab } from '../components/analytics/ReliabilityTab'
 import { exportAnalyticsCsv } from '../components/analytics/exportAnalyticsCsv'
+import { AnalyticsShiftChip } from '../components/analytics/AnalyticsShiftChip'
 
 export function AnalyticsPage() {
   const navigate = useNavigate()
@@ -264,16 +265,19 @@ export function AnalyticsPage() {
             machineId={machineId}
             onNavigate={navigateBreadcrumb}
           />
-          {scope ? (
-            <Group gap={6}>
-              <Badge variant="light" size="sm">
-                {scope.level}
-              </Badge>
-              <Text size="sm" fw={600}>
-                {scope.name}
-              </Text>
-            </Group>
-          ) : null}
+          <Group gap="sm" wrap="wrap">
+            <AnalyticsShiftChip lineId={lineId} plantId={plantId} />
+            {scope ? (
+              <Group gap={6}>
+                <Badge variant="light" size="sm">
+                  {scope.level}
+                </Badge>
+                <Text size="sm" fw={600}>
+                  {scope.name}
+                </Text>
+              </Group>
+            ) : null}
+          </Group>
         </Group>
 
         <TimeRangeBar

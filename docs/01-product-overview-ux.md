@@ -99,7 +99,7 @@ Default shipped tokens (OEE teal, Availability blue, Performance indigo, Quality
 
 ## Plant Explorer vs Analytics
 
-- **Plant Explorer** is the live operational cockpit: current shift, SignalR machine snapshots, time-balance donut (uptime vs downtime), OEE waterfall, and recent downtime events. Default view is shift-to-date with optional last-8h toggle.
+- **Plant Explorer** is the live operational cockpit: current shift for the selected node, SignalR machine snapshots, time-balance donut (uptime vs downtime), OEE waterfall, and recent downtime events. Default view is shift-to-date with optional last-8h toggle. Active shift is never shown in the global app header (multi-plant calendars differ); Operator Station and Analytics show shift for their selected plant/line scope.
 - **Line topology** (Admin → Hierarchy): **Independent** lines roll up machines as parallel peers; **Continuous** lines show a Continuous badge and use the designated **output** station for line good/reject (and pacing for performance). Explorer tree KPIs, dashboards, historian, and closed shifts share the same rollup rules.
 - **Analytics** is the historical analysis workspace: longer ranges, compare periods, exports, supervisor reason correction, and full tabbed drill-down.
 - Both share chart components (OEE trend, loss pareto, production) but Explorer prioritizes **live-now** metrics in the hero row; Analytics prioritizes range comparison and reporting.

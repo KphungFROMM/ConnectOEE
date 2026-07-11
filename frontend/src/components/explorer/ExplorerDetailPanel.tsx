@@ -285,6 +285,14 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
         preferLive={range === 'shift'}
       />
 
+      {(resolvedLineId || (node.level === 'Plant' && plantId)) && live ? (
+        <ShiftContextBar
+          lineId={resolvedLineId}
+          plantId={!resolvedLineId && node.level === 'Plant' ? plantId : undefined}
+          snapshot={snapshot}
+        />
+      ) : null}
+
       {node.level !== 'Machine' ? (
         <ExplorerChildCompare
           parentLevel={node.level}
@@ -343,11 +351,6 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
 
       {(resolvedLineId || (node.level === 'Plant' && plantId)) && live ? (
         <>
-          <ShiftContextBar
-            lineId={resolvedLineId}
-            plantId={!resolvedLineId && node.level === 'Plant' ? plantId : undefined}
-            snapshot={snapshot}
-          />
           <ReliabilityStrip live={live} />
           <WidgetFrame title="Reliability trend" live={!historian.initialLoading}>
             <ReliabilityTrendChart

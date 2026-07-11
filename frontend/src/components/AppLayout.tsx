@@ -36,7 +36,6 @@ import { Link, useLocation, Outlet } from 'react-router-dom'
 import { useConnectionState } from '../lib/useConnectionState'
 import { useClientPresence } from '../lib/useClientPresence'
 import { ConnectionIndicator } from './ConnectionIndicator'
-import { ShiftClock } from './ShiftClock'
 import { HelpDrawer } from './help/HelpDrawer'
 import { useAuth } from '../lib/auth'
 import { Permissions, isOperatorOnly } from '../lib/permissions'
@@ -205,7 +204,6 @@ export function AppLayout() {
             </Box>
           </Group>
           <Group gap="md" wrap="nowrap">
-            <ShiftClock />
             <ConnectionIndicator key={appearanceRevision} status={status} lastChecked={lastChecked} />
             <ActionIcon variant="default" size="lg" aria-label="Help" onClick={openHelp}>
               <IconHelpCircle size={18} />
