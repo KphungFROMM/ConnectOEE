@@ -9,7 +9,7 @@ namespace ConnectOEE.Drivers;
 /// breakdowns (fault code) and short micro-stops - while counts accrue at the
 /// ideal rate with a small reject fraction and speed jitter.
 /// </summary>
-public class MockDriver : IPlcDriver, ITagBrowsingDriver
+public class MockDriver : IPlcDriver, ITagBrowsingDriver, IControllableDriver
 {
     private sealed class Sim
     {
@@ -21,10 +21,15 @@ public class MockDriver : IPlcDriver, ITagBrowsingDriver
         public int? FaultCode;
         public DateTimeOffset StateUntil = DateTimeOffset.UtcNow;
         public double CurrentSpeed;
+        public bool StartPermissive = true;
+        public int AckPulseCount;
+        public int ResetPulseCount;
     }
 
     private readonly List<Sim> _sims;
     private readonly HashSet<Guid> _partIdMachines;
+    private readonly Dictionary<string, double> _tagWrites = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _gate = new();
     private readonly Random _rng = new();
     private DateTimeOffset _lastPoll = DateTimeOffset.UtcNow;
     private static readonly string[] DemoProducts = { "WGT-A100", "WGT-B200", "PKG-STD", "PKG-PREM", "SPC-500" };
@@ -33,6 +38,7 @@ public class MockDriver : IPlcDriver, ITagBrowsingDriver
 
     public DriverType Type => DriverType.Mock;
     public ConnectionState State { get; private set; } = ConnectionState.Disconnected;
+    public bool SupportsControl => true;
 
     public MockDriver(IEnumerable<DriverMachine> machines, IEnumerable<Guid>? partIdMachineIds = null)
     {
@@ -45,8 +51,13 @@ public class MockDriver : IPlcDriver, ITagBrowsingDriver
     // tree, and tag mapping are fully exercisable without hardware.
     public bool SupportsBrowsing => true;
 
-    public Task<IReadOnlyList<BrowseTag>> BrowseAsync(CancellationToken ct = default)
-        => Task.FromResult(MockTagCatalog.Tree);
+    public Task<IReadOnlyList<BrowseTag>> BrowseAsync(
+        CancellationToken ct = default,
+        IProgress<BrowseProgress>? progress = null)
+    {
+        progress?.Report(new BrowseProgress(100, "Ready"));
+        return Task.FromResult(MockTagCatalog.Tree);
+    }
 
     public Task<IReadOnlyList<TagValueSample>> ReadValuesAsync(IEnumerable<TagReadRequest> requests, CancellationToken ct = default)
     {
@@ -74,63 +85,66 @@ public class MockDriver : IPlcDriver, ITagBrowsingDriver
 
     public Task<IReadOnlyList<SignalReading>> PollAsync(CancellationToken ct = default)
     {
-        var now = DateTimeOffset.UtcNow;
-        var elapsedHours = (now - _lastPoll).TotalHours;
-        _lastPoll = now;
-
-        var readings = new List<SignalReading>(_sims.Count * 4);
-
-        foreach (var sim in _sims)
+        lock (_gate)
         {
-            AdvanceState(sim, now);
+            var now = DateTimeOffset.UtcNow;
+            var elapsedHours = (now - _lastPoll).TotalHours;
+            _lastPoll = now;
 
-            if (sim.State == RunState.Running)
+            var readings = new List<SignalReading>(_sims.Count * 4);
+
+            foreach (var sim in _sims)
             {
-                // Accrue production at ideal rate with mild speed variation.
-                sim.CurrentSpeed = sim.Machine.IdealRatePerHour * (0.9 + _rng.NextDouble() * 0.15);
-                sim.GoodAccum += sim.CurrentSpeed * elapsedHours;
-                var whole = (long)Math.Floor(sim.GoodAccum);
-                if (whole > 0)
+                AdvanceState(sim, now);
+
+                if (sim.State == RunState.Running)
                 {
-                    sim.GoodAccum -= whole;
-                    // ~2% rejects.
-                    var rejects = 0L;
-                    for (var i = 0; i < whole; i++)
-                        if (_rng.NextDouble() < 0.02) rejects++;
-                    sim.GoodCount += whole - rejects;
-                    sim.RejectCount += rejects;
+                    // Accrue production at ideal rate with mild speed variation.
+                    sim.CurrentSpeed = sim.Machine.IdealRatePerHour * (0.9 + _rng.NextDouble() * 0.15);
+                    sim.GoodAccum += sim.CurrentSpeed * elapsedHours;
+                    var whole = (long)Math.Floor(sim.GoodAccum);
+                    if (whole > 0)
+                    {
+                        sim.GoodAccum -= whole;
+                        // ~2% rejects.
+                        var rejects = 0L;
+                        for (var i = 0; i < whole; i++)
+                            if (_rng.NextDouble() < 0.02) rejects++;
+                        sim.GoodCount += whole - rejects;
+                        sim.RejectCount += rejects;
+                    }
+                }
+                else
+                {
+                    sim.CurrentSpeed = 0;
+                }
+
+                readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.RunState,
+                    (double)(int)sim.State, sim.State, sim.FaultCode, now));
+                readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.GoodCount,
+                    sim.GoodCount, null, null, now));
+                readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.RejectCount,
+                    sim.RejectCount, null, null, now));
+                readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.Speed,
+                    sim.CurrentSpeed, null, null, now));
+                readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.DowntimeReason,
+                    sim.FaultCode ?? 0, null, sim.FaultCode, now));
+
+                // Emit rotating demo PartId only when the machine has a PartId tag mapping (see DriverFactory).
+                if (_partIdMachines.Contains(sim.Machine.MachineId))
+                {
+                    if ((now - _productRotatedAt).TotalMinutes >= 8)
+                    {
+                        _productIndex = (_productIndex + 1) % DemoProducts.Length;
+                        _productRotatedAt = now;
+                    }
+                    readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.PartId,
+                        0, null, null, now, TextValue: DemoProducts[_productIndex]));
                 }
             }
-            else
-            {
-                sim.CurrentSpeed = 0;
-            }
 
-            readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.RunState,
-                (double)(int)sim.State, sim.State, sim.FaultCode, now));
-            readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.GoodCount,
-                sim.GoodCount, null, null, now));
-            readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.RejectCount,
-                sim.RejectCount, null, null, now));
-            readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.Speed,
-                sim.CurrentSpeed, null, null, now));
-            readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.DowntimeReason,
-                sim.FaultCode ?? 0, null, sim.FaultCode, now));
-
-            // Emit rotating demo PartId only when the machine has a PartId tag mapping (see DriverFactory).
-            if (_partIdMachines.Contains(sim.Machine.MachineId))
-            {
-                if ((now - _productRotatedAt).TotalMinutes >= 8)
-                {
-                    _productIndex = (_productIndex + 1) % DemoProducts.Length;
-                    _productRotatedAt = now;
-                }
-                readings.Add(new SignalReading(sim.Machine.MachineId, sim.Machine.LineId, SignalRole.PartId,
-                    0, null, null, now, TextValue: DemoProducts[_productIndex]));
-            }
+            return Task.FromResult<IReadOnlyList<SignalReading>>(readings);
         }
-
-        return Task.FromResult<IReadOnlyList<SignalReading>>(readings);
     }
 
     private void AdvanceState(Sim sim, DateTimeOffset now)
@@ -138,6 +152,7 @@ public class MockDriver : IPlcDriver, ITagBrowsingDriver
         if (now < sim.StateUntil) return;
 
         // Transition logic: from Running we may break down or micro-stop.
+        // StartPermissive held false blocks auto-recovery from Idle/Down.
         switch (sim.State)
         {
             case RunState.Running:
@@ -161,10 +176,65 @@ public class MockDriver : IPlcDriver, ITagBrowsingDriver
                 break;
 
             default:
+                if (!sim.StartPermissive)
+                {
+                    sim.StateUntil = now.AddSeconds(_rng.Next(10, 40));
+                    break;
+                }
                 sim.State = RunState.Running;
                 sim.FaultCode = null;
                 sim.StateUntil = now.AddSeconds(_rng.Next(30, 120));
                 break;
         }
+    }
+
+    // ----- IControllableDriver (commission without Rockwell hardware) -----
+
+    public Task<bool> WriteCommandAsync(Guid machineId, PlcCommand command, CancellationToken ct = default)
+    {
+        lock (_gate)
+        {
+            var sim = _sims.FirstOrDefault(s => s.Machine.MachineId == machineId);
+            if (sim is null) return Task.FromResult(false);
+
+            switch (command)
+            {
+                case PlcCommand.Ack:
+                    // Pulse ack and clear fault latch → Running (mirrors Rockwell pulse).
+                    sim.AckPulseCount++;
+                    sim.FaultCode = null;
+                    if (sim.State is RunState.Down or RunState.Setup)
+                    {
+                        sim.State = RunState.Running;
+                        sim.StateUntil = DateTimeOffset.UtcNow.AddSeconds(30);
+                    }
+                    break;
+                case PlcCommand.Reset:
+                    sim.ResetPulseCount++;
+                    sim.FaultCode = null;
+                    sim.State = RunState.Idle;
+                    sim.StateUntil = DateTimeOffset.UtcNow.AddSeconds(5);
+                    break;
+                case PlcCommand.StartPermissive:
+                    // Hold enable bit (PLC owns interlocks; mock just latches the bit).
+                    sim.StartPermissive = true;
+                    break;
+                default:
+                    return Task.FromResult(false);
+            }
+
+            _tagWrites[$"Mock.Control.{machineId:N}.{command}"] = 1;
+            return Task.FromResult(true);
+        }
+    }
+
+    public Task<bool> WriteTagAsync(string tagPath, double value, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(tagPath)) return Task.FromResult(false);
+        lock (_gate)
+        {
+            _tagWrites[tagPath.Trim()] = value;
+        }
+        return Task.FromResult(true);
     }
 }

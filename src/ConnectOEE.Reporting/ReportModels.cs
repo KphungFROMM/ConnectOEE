@@ -64,4 +64,12 @@ public class ReportModel
     public byte[]? OeeTrendChart { get; set; }
     public byte[]? ParetoChart { get; set; }
     public byte[]? ProductionChart { get; set; }
+
+    /// <summary>Hero OEE ring for KPI band (small PNG).</summary>
+    public byte[]? OeeRingChart { get; set; }
+    /// <summary>Compact OEE sparkline under the hero ring.</summary>
+    public byte[]? OeeSparkline { get; set; }
+    public byte[]? AvailabilitySparkline { get; set; }
+    public byte[]? PerformanceSparkline { get; set; }
+    public byte[]? QualitySparkline { get; set; }
 }

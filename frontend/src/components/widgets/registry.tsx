@@ -308,12 +308,21 @@ export interface WidgetMeta {
 }
 
 /** Numeric/string snapshot fields a value widget can bind to (MachineSnapshot). */
-export const SNAPSHOT_FIELDS: { value: string; label: string }[] = [
+export const GAUGE_KPI_FIELDS: { value: string; label: string }[] = [
   { value: 'oeePct', label: 'OEE %' },
   { value: 'availabilityPct', label: 'Availability %' },
   { value: 'performancePct', label: 'Performance %' },
   { value: 'qualityPct', label: 'Quality %' },
   { value: 'teepPct', label: 'TEEP %' },
+  { value: 'scrapPct', label: 'Scrap %' },
+  { value: 'yieldPct', label: 'Yield %' },
+  { value: 'fpyPct', label: 'FPY %' },
+  { value: 'uptimePct', label: 'Uptime %' },
+  { value: 'utilizationPct', label: 'Utilization %' },
+]
+
+export const SNAPSHOT_FIELDS: { value: string; label: string }[] = [
+  ...GAUGE_KPI_FIELDS,
   { value: 'goodCount', label: 'Good count' },
   { value: 'rejectCount', label: 'Reject count' },
   { value: 'reworkCount', label: 'Rework count' },
@@ -332,7 +341,6 @@ export const SNAPSHOT_FIELDS: { value: string; label: string }[] = [
   { value: 'downtimeMin', label: 'Downtime (min)' },
   { value: 'plannedDowntimeMin', label: 'Planned downtime (min)' },
   { value: 'unplannedDowntimeMin', label: 'Unplanned downtime (min)' },
-  { value: 'uptimePct', label: 'Uptime %' },
   { value: 'availabilityLossMin', label: 'Availability loss (min)' },
   { value: 'performanceLossMin', label: 'Performance loss (min)' },
   { value: 'qualityLossMin', label: 'Quality loss (min)' },
@@ -341,11 +349,7 @@ export const SNAPSHOT_FIELDS: { value: string; label: string }[] = [
   { value: 'actualRatePph', label: 'Actual rate (pph)' },
   { value: 'idealRatePph', label: 'Ideal rate (pph)' },
   { value: 'rateVariancePct', label: 'Rate variance %' },
-  { value: 'scrapPct', label: 'Scrap %' },
-  { value: 'yieldPct', label: 'Yield %' },
-  { value: 'fpyPct', label: 'FPY %' },
   { value: 'oeeGapPct', label: 'OEE gap %' },
-  { value: 'utilizationPct', label: 'Utilization %' },
   { value: 'cycleVariancePct', label: 'Cycle variance %' },
   { value: 'reworkPct', label: 'Rework %' },
   { value: 'runAttainmentPct', label: 'Run attainment %' },
@@ -393,7 +397,7 @@ export const widgetCatalog: WidgetMeta[] = [
   { type: 'reliability-panel', label: 'Reliability Panel', category: 'Reliability & downtime', defaultW: 4, defaultH: 3, options: ['source'] },
   { type: 'state-timeline', label: 'State Timeline', category: 'State & status', defaultW: 6, defaultH: 3, options: [] },
   { type: 'plant-grid', label: 'Plant Grid', category: 'KPI & OEE', defaultW: 6, defaultH: 4, options: [] },
-  { type: 'machine-grid', label: 'Machine Grid', category: 'KPI & OEE', defaultW: 12, defaultH: 6, options: ['groupByLine', 'sortBy'] },
+  { type: 'machine-grid', label: 'Machine Grid', category: 'KPI & OEE', defaultW: 12, defaultH: 6, options: ['groupByLine', 'sortBy', 'cardStyle'] },
   { type: 'current-job-banner', label: 'Current Job', category: 'Production & shift', defaultW: 4, defaultH: 2, options: [] },
   { type: 'production-run-list', label: 'Production Summary', category: 'Production & shift', defaultW: 4, defaultH: 3, options: [] },
   { type: 'scrap-tile', label: 'Scrap %', category: 'KPI & OEE', defaultW: 2, defaultH: 2, options: ['field'] },
@@ -422,10 +426,10 @@ export const widgetCatalog: WidgetMeta[] = [
   { type: 'operator-downtime-pad', label: 'Downtime Pad', category: 'Interactive', defaultW: 4, defaultH: 3, options: [] },
   { type: 'fault-ack-button', label: 'Fault Ack', category: 'Interactive', defaultW: 2, defaultH: 2, options: [] },
   { type: 'plc-write-controls', label: 'PLC Controls', category: 'Interactive', defaultW: 3, defaultH: 2, options: [] },
-  { type: 'plant-summary-hero', label: 'Plant Summary', category: 'KPI & OEE', defaultW: 12, defaultH: 2, options: [] },
+  { type: 'plant-summary-hero', label: 'KPI Summary', category: 'KPI & OEE', defaultW: 12, defaultH: 2, options: [] },
   { type: 'line-leaderboard', label: 'Line Leaderboard', category: 'KPI & OEE', defaultW: 4, defaultH: 4, options: [] },
   { type: 'worst-lines', label: 'Worst Lines', category: 'KPI & OEE', defaultW: 4, defaultH: 3, options: [] },
-  { type: 'oee-hero', label: 'OEE Hero', category: 'KPI & OEE', defaultW: 4, defaultH: 4, options: [] },
+  { type: 'oee-hero', label: 'OEE Hero', category: 'KPI & OEE', defaultW: 4, defaultH: 4, options: ['field'] },
   { type: 'apq-cluster', label: 'A/P/Q Cluster', category: 'KPI & OEE', defaultW: 6, defaultH: 2, options: [] },
   { type: 'kpi-stat-card', label: 'KPI Stat Card', category: 'KPI & OEE', defaultW: 3, defaultH: 2, options: ['field', 'kind', 'unit', 'decimals', 'source'] },
   { type: 'andon-stack', label: 'Andon Stack', category: 'State & status', defaultW: 3, defaultH: 4, options: [] },

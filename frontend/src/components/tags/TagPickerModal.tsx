@@ -17,6 +17,7 @@ export function TagPickerModal({ opened, onClose, connectionId, signalName, onSe
   const {
     browse,
     loading,
+    loadingProgress,
     filter,
     selected,
     scrollTop,
@@ -57,6 +58,7 @@ export function TagPickerModal({ opened, onClose, connectionId, signalName, onSe
         <TagBrowseTree
           supportsBrowsing={supportsBrowsing}
           loading={loading}
+          loadingProgress={loadingProgress}
           filter={filter}
           onFilterChange={setFilter}
           rows={rows}

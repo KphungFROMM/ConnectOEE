@@ -14,6 +14,7 @@ namespace ConnectOEE.Api.Live;
 public class LiveHub : Hub
 {
     public static string LineGroup(Guid lineId) => $"line:{lineId}";
+    public static string BrowseGroup(Guid plcConnectionId) => $"browse:{plcConnectionId}";
 
     public async Task SubscribeLine(Guid lineId)
     {
@@ -26,6 +27,18 @@ public class LiveHub : Hub
 
     public Task UnsubscribeLine(Guid lineId)
         => Groups.RemoveFromGroupAsync(Context.ConnectionId, LineGroup(lineId));
+
+    public Task SubscribeTagBrowse(Guid plcConnectionId)
+    {
+        var user = Context.User;
+        if (user is null || !user.HasClaim(ConnectClaimTypes.Permission, PermissionKeys.BrowseTags))
+            throw new HubException("Forbidden: tags.browse permission required");
+
+        return Groups.AddToGroupAsync(Context.ConnectionId, BrowseGroup(plcConnectionId));
+    }
+
+    public Task UnsubscribeTagBrowse(Guid plcConnectionId)
+        => Groups.RemoveFromGroupAsync(Context.ConnectionId, BrowseGroup(plcConnectionId));
 
     public Task SubscribeTagPreview(Guid plcConnectionId, TagPreviewPathDto[] paths)
     {

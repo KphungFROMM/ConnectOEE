@@ -16,7 +16,7 @@ Entities grouped by domain. All schema changes ship as EF Core migrations.
 ## Signals / OEE config
 
 - `LogicalSignal` - run state, good count, reject count, speed, fault code, optional **PartId** (recipe/SKU); `CountIngestMode` on count roles (cumulative delta vs pulse edge).
-- `OeeConfig` - line **fallback** ideal rate/cycle (`IdealRatePerHour`, `IdealCycleTimeSec`), targets, micro-stop threshold, and `ProductionMode` (`MultiProduct`, `DedicatedProduct`, `NoProductTracking`). Admin Hierarchy edits this stored config — not the live-resolved ideal on the hierarchy tree KPI.
+- `OeeConfig` - line **fallback** ideal rate/cycle (`IdealRatePerHour`, `IdealCycleTimeSec`), targets, micro-stop threshold, `ProductionMode` (`MultiProduct`, `DedicatedProduct`, `NoProductTracking`), and **line topology** (`Topology`: `Independent` | `Continuous`, plus optional `LineOutputMachineId` / `PacingMachineId` for Continuous serial lines). Admin Hierarchy edits this stored config — not the live-resolved ideal on the hierarchy tree KPI.
 - `FaultCodeMap` - numeric code -> human-readable reason, per machine/line.
 - **`ProductRecipe`** - plant-wide product/SKU catalog (`Code`, `Name`, `PlcAlias`, default `IdealCycleTimeSec`, `IsAutoCreated` for PLC stubs).
 - **`LineProductRate`** - per-line ideal cycle override for a catalog product (same SKU, different line speeds). Takes priority over catalog default when a product is active on that line.

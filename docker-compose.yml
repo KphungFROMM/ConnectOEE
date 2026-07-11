@@ -18,5 +18,28 @@ services:
       timeout: 5s
       retries: 5
 
+  # Microsoft OPC PLC simulator — anonymous + auto-accept for local driver testing.
+  # Endpoint: opc.tcp://localhost:50000  (nodes under Telemetry / Slow / Fast / …)
+  opcua-sim:
+    image: mcr.microsoft.com/iotedge/opc-plc:latest
+    container_name: connectoee-opcua-sim
+    restart: unless-stopped
+    ports:
+      - "${OPCUA_SIM_PORT:-50000}:50000"
+      - "${OPCUA_SIM_WEB_PORT:-8080}:8080"
+    command:
+      [
+        "--pn=50000",
+        "--autoaccept",
+        "--sph",
+        "--sn=5",
+        "--sr=10",
+        "--st=uint",
+        "--fn=5",
+        "--fr=1",
+        "--ft=uint",
+        "--gn=5",
+      ]
+
 volumes:
   pgdata:

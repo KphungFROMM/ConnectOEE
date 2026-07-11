@@ -46,9 +46,9 @@ export const DISPLAY_PROFILES: Record<DisplayProfileId, DisplayProfile> = {
 }
 
 export const KIOSK_TEMPLATE_NAMES = new Set([
-  'Operator Kiosk',
-  'Line Andon Wall',
-  'Maintenance Wallboard',
+  'Operator Floor',
+  'Line Andon',
+  'Maintenance Wall',
 ])
 
 export function profileForDashboard(scope: string, name?: string): DisplayProfileId {

@@ -6,6 +6,7 @@ using ConnectOEE.Core.Abstractions;
 using ConnectOEE.Core.Entities;
 using ConnectOEE.Core.Entities.Security;
 using ConnectOEE.Core.Licensing;
+using ConnectOEE.Core.Oee;
 using ConnectOEE.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -51,7 +52,8 @@ public class HierarchyController : ControllerBase
         string? ActiveRecipeCode, string? ActiveRecipeName, double IdealCycleTimeSec, double ActualCycleTimeSec,
         double ActualRatePph, double IdealRatePph, bool RecipeIsAutoCreated);
     public record MachineNode(Guid Id, string Name, NodeKpi Kpi, string? State, int? FaultCode, double Speed);
-    public record LineNode(Guid Id, string Name, NodeKpi Kpi, List<MachineNode> Machines, string? ActiveProductCode);
+    public record LineNode(Guid Id, string Name, NodeKpi Kpi, List<MachineNode> Machines, string? ActiveProductCode,
+        LineTopology Topology, Guid? LineOutputMachineId, Guid? PacingMachineId, string? LineOutputMachineName);
     public record DeptNode(Guid Id, string Name, NodeKpi Kpi, List<LineNode> Lines);
     public record PlantNode(Guid Id, string Name, NodeKpi Kpi, List<DeptNode> Departments);
 
@@ -76,6 +78,11 @@ public class HierarchyController : ControllerBase
 
         var plants = await plantsQuery.OrderBy(p => p.Name).ToListAsync();
 
+        var lineIds = plants.SelectMany(p => p.Departments).SelectMany(d => d.Lines).Select(l => l.Id).ToList();
+        var oeeByLine = await _db.OeeConfigs.AsNoTracking()
+            .Where(o => lineIds.Contains(o.LineId))
+            .ToDictionaryAsync(o => o.LineId);
+
         var result = plants.Select(p =>
         {
             var depts = p.Departments.OrderBy(d => d.Name).Select(d =>
@@ -84,17 +91,30 @@ public class HierarchyController : ControllerBase
                     .Where(l => lineScopes.Count == 0 || lineScopes.Contains(l.Id))
                     .Select(l =>
                 {
-                    var machines = l.Machines.OrderBy(m => m.SequenceIndex).Select(m =>
+                    var ordered = l.Machines.OrderBy(m => m.SequenceIndex).ToList();
+                    var machines = ordered.Select(m =>
                     {
                         var snap = _cache.All().FirstOrDefault(s => s.MachineId == m.Id);
                         return new MachineNode(m.Id, m.Name, KpiFromSnapshot(snap), snap?.State, snap?.FaultCode, snap?.ActualRatePph ?? 0);
                     }).ToList();
+
+                    oeeByLine.TryGetValue(l.Id, out var cfg);
+                    var machineIds = ordered.Select(m => m.Id).ToList();
+                    var topology = LineTopologyResolver.FromConfig(cfg, machineIds);
+                    var rows = machines.Select(m => ToKpiRow(m.Id, m.Kpi)).ToList();
+                    var rolled = LineKpiRollup.RollUpLine(rows, topology);
                     var productCode = machines.Select(m => m.Kpi.ActiveRecipeCode).FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
-                    return new LineNode(l.Id, l.Name, RollUp(machines.Select(x => x.Kpi)), machines, productCode);
+                    var outputName = topology.OutputMachineId is Guid outId
+                        ? machines.FirstOrDefault(m => m.Id == outId)?.Name
+                        : null;
+
+                    return new LineNode(
+                        l.Id, l.Name, ToNodeKpi(rolled), machines, productCode,
+                        topology.Topology, topology.OutputMachineId, topology.PacingMachineId, outputName);
                 }).ToList();
-                return new DeptNode(d.Id, d.Name, RollUp(lines.Select(x => x.Kpi)), lines);
+                return new DeptNode(d.Id, d.Name, RollUpPeers(lines.Select(x => x.Kpi)), lines);
             }).Where(d => d.Lines.Count > 0).ToList();
-            return new PlantNode(p.Id, p.Name, RollUp(depts.Select(x => x.Kpi)), depts);
+            return new PlantNode(p.Id, p.Name, RollUpPeers(depts.Select(x => x.Kpi)), depts);
         }).Where(p => p.Departments.Count > 0).ToList();
 
         return Ok(result);
@@ -109,39 +129,21 @@ public class HierarchyController : ControllerBase
             s.ActualRatePph, s.IdealRatePph, s.RecipeIsAutoCreated);
     }
 
-    /// <summary>Rolls child KPIs up: averaged A/P, quality from summed counts, OEE = A×P×Q.</summary>
-    private static NodeKpi RollUp(IEnumerable<NodeKpi> children)
-    {
-        var list = children.ToList();
-        if (list.Count == 0) return new NodeKpi(0, 0, 0, 0, 0, 0, "Unknown", "Disconnected", null, null, 0, 0, 0, 0, false);
+    private static LineKpiRollup.KpiRow ToKpiRow(Guid machineId, NodeKpi k) =>
+        new(machineId, k.OeePct, k.AvailabilityPct, k.PerformancePct, k.QualityPct,
+            k.GoodCount, k.RejectCount, k.Status, k.ConnectionState,
+            k.ActiveRecipeCode, k.ActiveRecipeName, k.IdealCycleTimeSec, k.ActualCycleTimeSec,
+            k.ActualRatePph, k.IdealRatePph, k.RecipeIsAutoCreated);
 
-        var good = list.Sum(c => c.GoodCount);
-        var reject = list.Sum(c => c.RejectCount);
-        var availability = Math.Round(list.Average(c => c.AvailabilityPct), 2);
-        var performance = Math.Round(list.Average(c => c.PerformancePct), 2);
-        var totalPieces = good + reject;
-        var quality = totalPieces > 0
-            ? Math.Round(good * 100.0 / totalPieces, 2)
-            : Math.Round(list.Average(c => c.QualityPct), 2);
-        var oee = Math.Round(availability * performance * quality / 10000.0, 2);
+    private static NodeKpi ToNodeKpi(LineKpiRollup.RolledKpi r) =>
+        new(r.OeePct, r.AvailabilityPct, r.PerformancePct, r.QualityPct,
+            r.GoodCount, r.RejectCount, r.Status, r.ConnectionState,
+            r.ActiveRecipeCode, r.ActiveRecipeName, r.IdealCycleTimeSec, r.ActualCycleTimeSec,
+            r.ActualRatePph, r.IdealRatePph, r.RecipeIsAutoCreated);
 
-        return new NodeKpi(
-            oee,
-            availability,
-            performance,
-            quality,
-            good,
-            reject,
-            WorstStatus(list.Select(c => c.Status)),
-            list.Any(c => c.ConnectionState == "Connected") ? "Connected" : "Disconnected",
-            list.Select(c => c.ActiveRecipeCode).FirstOrDefault(c => !string.IsNullOrWhiteSpace(c)),
-            list.Select(c => c.ActiveRecipeName).FirstOrDefault(c => !string.IsNullOrWhiteSpace(c)),
-            Math.Round(list.Where(c => c.IdealCycleTimeSec > 0).Select(c => c.IdealCycleTimeSec).DefaultIfEmpty(0).Average(), 2),
-            Math.Round(list.Where(c => c.ActualCycleTimeSec > 0).Select(c => c.ActualCycleTimeSec).DefaultIfEmpty(0).Average(), 2),
-            Math.Round(list.Average(c => c.ActualRatePph), 2),
-            Math.Round(list.Average(c => c.IdealRatePph), 2),
-            list.Any(c => c.RecipeIsAutoCreated));
-    }
+    /// <summary>Dept/plant peer rollup via <see cref="LineKpiRollup.RollUpIndependent"/>.</summary>
+    private static NodeKpi RollUpPeers(IEnumerable<NodeKpi> children) =>
+        ToNodeKpi(LineKpiRollup.RollUpIndependent(children.Select(c => ToKpiRow(Guid.Empty, c)).ToList()));
 
     public record ProductionContextDto(
         string? ActiveRecipeCode,
@@ -241,16 +243,6 @@ public class HierarchyController : ControllerBase
         return Ok(ctx);
     }
 
-    private static string WorstStatus(IEnumerable<string> statuses)
-    {
-        var set = statuses.ToHashSet();
-        if (set.Contains("Down") || set.Contains("Setup")) return "Down";
-        if (set.Contains("Idle") || set.Contains("Starved") || set.Contains("Blocked")) return "Idle";
-        if (set.Contains("PlannedDown")) return "PlannedDown";
-        if (set.Contains("Running")) return "Running";
-        return "Unknown";
-    }
-
     // ---------------- Hierarchy admin CRUD (wizard + admin screens) ----------------
 
     public record CreateDepartmentRequest(Guid PlantId, string Name);
@@ -266,7 +258,10 @@ public class HierarchyController : ControllerBase
         int MicroStopThresholdSec,
         LineProductionMode ProductionMode,
         ChangeoverMode ChangeoverMode,
-        ReworkTrackingMode ReworkTracking);
+        ReworkTrackingMode ReworkTracking,
+        LineTopology Topology,
+        Guid? LineOutputMachineId,
+        Guid? PacingMachineId);
     public record OeeConfigRequest(
         double IdealRatePerHour,
         double? IdealCycleTimeSec,
@@ -277,7 +272,10 @@ public class HierarchyController : ControllerBase
         int? MicroStopThresholdSec,
         LineProductionMode? ProductionMode,
         ChangeoverMode? ChangeoverMode,
-        ReworkTrackingMode? ReworkTracking);
+        ReworkTrackingMode? ReworkTracking,
+        LineTopology? Topology,
+        Guid? LineOutputMachineId,
+        Guid? PacingMachineId);
     public record IdResult(Guid Id);
 
     [HttpPost("departments")]
@@ -331,7 +329,7 @@ public class HierarchyController : ControllerBase
 
         var cfg = await _db.OeeConfigs.AsNoTracking().FirstOrDefaultAsync(o => o.LineId == id);
         if (cfg is null)
-            return Ok(new OeeConfigDto(1800, 2.0, 85, 90, 95, 99, 120, LineProductionMode.MultiProduct, ChangeoverMode.SetupTracked, ReworkTrackingMode.Auto));
+            return Ok(new OeeConfigDto(1800, 2.0, 85, 90, 95, 99, 120, LineProductionMode.MultiProduct, ChangeoverMode.SetupTracked, ReworkTrackingMode.Auto, LineTopology.Independent, null, null));
 
         return Ok(new OeeConfigDto(
             cfg.IdealRatePerHour,
@@ -343,7 +341,10 @@ public class HierarchyController : ControllerBase
             cfg.MicroStopThresholdSec,
             cfg.ProductionMode,
             cfg.ChangeoverMode,
-            cfg.ReworkTracking));
+            cfg.ReworkTracking,
+            cfg.Topology,
+            cfg.LineOutputMachineId,
+            cfg.PacingMachineId));
     }
 
     [HttpPut("lines/{id:guid}/oee")]
@@ -367,6 +368,25 @@ public class HierarchyController : ControllerBase
         if (req.ProductionMode is { } mode) cfg.ProductionMode = mode;
         if (req.ChangeoverMode is { } coMode) cfg.ChangeoverMode = coMode;
         if (req.ReworkTracking is { } rework) cfg.ReworkTracking = rework;
+        if (req.Topology is { } topology) cfg.Topology = topology;
+
+        var machineIds = await _db.Machines.Where(m => m.LineId == id).Select(m => m.Id).ToListAsync();
+        var machineSet = machineIds.ToHashSet();
+
+        // Always apply requested ids when present on the body; clear when not Continuous or invalid.
+        if (req.Topology is LineTopology.Continuous || cfg.Topology == LineTopology.Continuous)
+        {
+            var outputId = req.LineOutputMachineId ?? cfg.LineOutputMachineId;
+            var pacingId = req.PacingMachineId ?? cfg.PacingMachineId;
+            cfg.LineOutputMachineId = outputId is Guid o && machineSet.Contains(o) ? o : null;
+            cfg.PacingMachineId = pacingId is Guid p && machineSet.Contains(p) ? p : null;
+        }
+        else
+        {
+            cfg.LineOutputMachineId = null;
+            cfg.PacingMachineId = null;
+        }
+
         cfg.UpdatedUtc = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync();
         return NoContent();

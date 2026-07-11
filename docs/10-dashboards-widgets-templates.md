@@ -8,8 +8,9 @@ Shared primitives live under `frontend/src/components/widgets/design/`:
 - **WidgetFrame** — variants `default`, `hero`, `compact`, `kiosk`; live pulse, footer slot
 - **KpiValue** — tabular numbers, unit, delta badge, optional sparkline slot
 - **ChartShell** — consistent padding, loading skeleton, partial-data banner (“accumulating history — showing shift-to-date”)
-- **StatusPill** — Running/Down/Idle with glow + icon
-- **AndonStackVisual** — 3-light tower for wall displays
+- **StatusVisual** / **statusStyle** — `beacon` | `pill` | `minimal` | `tower` | `strip` for run-state, Andon, and OEE traffic widgets
+- **AndonStackVisual** — tower / strip / beacon layouts (no overlapping bottom hero text)
+- **PresentationKpi** — `number` | `ring` | `bar` | `spark` | `ringSpark` | `barSpark` | `tile` | `delta` | `gauge`
 
 Chart primitives: `ComboParetoChart`, `WaterfallChart`, `HeatmapGrid`, `LeaderboardBars`, upgraded `Sparkline` (area fill + last-point marker).
 
@@ -17,11 +18,11 @@ Kiosk dashboards set `WidgetCtx.density = 'kiosk'` (~2× typography, thicker gau
 
 ## Dashboards Hub
 
-The `/dashboards` page groups wizard-generated boards by plant, line, and role (Overview, Analysis, Kiosk). Search, pinned/recent rows, and enriched cards (`InferredCategory`, binding context) replace the flat 36-card grid. System layout refresh lives in the overflow menu, not the primary subtitle.
+The `/dashboards` page is a **scope-first browser**: left nav (All / Kiosks / plants with nested lines), main searchable card grid for the selected scope, and filter chips (Pinned, Kiosk, Analysis). Opening or pinning a board never removes it from its plant/line home — recent is a non-removing shortcut strip (max 8) plus card badges; pin is a badge + chip filter. Selected scope persists in `localStorage` (`connectoee.dashboards.selectedScope`). System layout refresh lives in the overflow menu.
 
 ## Widget presentation variants
 
-Per-widget `frameVariant` (`default` | `hero` | `compact` | `kiosk`) is set in the builder **Layout** tab and seeded on Line Overview, Operator Station, and Executive Summary templates. Five families support variants: OEE gauges, A/P/Q, downtime charts, machine/status grids, and production tiles.
+Per-widget `frameVariant` (`default` | `hero` | `compact` | `kiosk`) is set in the builder **Layout** tab and seeded on system templates. KPI tiles also expose `presentation` skins (including **tile**, **delta**, **gauge**). Status widgets expose `statusStyle` (`beacon` / `pill` / `minimal` / `tower` / `strip`) in palette Flavors, Layout, and canvas chips.
 
 ## Plant-scoped binding
 
@@ -106,7 +107,7 @@ Every widget is data-bindable, responsive, touch-friendly, dark/light aware, and
 - `speed-trend`, `sparkline-tile`, `linear-gauge`, `oee-by-shift`, `takt-vs-actual`, `units-per-shift`
 - `line-status-indicator`, `run-state-badge`, `fault-code-summary`, `histogram`
 
-*(See registry `widgetCatalog` for the full typed inventory — 98 widget types across KPI, reliability, charts, tables, layout, and interactive categories.)*
+*(See registry `widgetCatalog` for the full typed inventory — **111** widget types across KPI, reliability, charts, tables, layout, and interactive categories. Presentation flavors and frame variants: see [WIDGET-REDESIGN-2026-07.md](WIDGET-REDESIGN-2026-07.md).)*
 
 ### Interactive (role-gated)
 - Operator downtime-reason entry button/pad, fault acknowledge button.
@@ -117,38 +118,28 @@ Every widget is data-bindable, responsive, touch-friendly, dark/light aware, and
 
 Ships with professionally designed, ready-to-use dashboards so a new install is useful immediately. Stored as `DashboardTemplate` records with placeholder bindings (e.g. `{{line.runState}}`, `{{machine.goodCount}}`) auto-remapped to the chosen line/machine on instantiation. All responsive, touch-friendly, dark/light aware, and editable in the WYSIWYG builder.
 
-Built-in templates (**v7.1 — 18 system templates**; wall-fit reimagining for 1080p floor monitors — no scroll on published/kiosk display):
+Built-in templates (**v8 — 8 curated system templates**; blank-grid compositions with wall visual language — no scroll on published/kiosk display). Visual rules: [WIDGET-VISUAL-LANGUAGE-2026-07.md](WIDGET-VISUAL-LANGUAGE-2026-07.md). Premade v7.2 layouts are retired on upsert.
 
 | Template | Category | Scope | Rows | Widgets | Purpose |
 |----------|----------|-------|------|---------|---------|
-| **Plant Command Center** | Plant | Plant | 9 | 9 | Plant hero, traffic light, line status strip, gap cluster, andon, grid, leaderboard |
-| **Executive Briefing** | Executive | Plant | 9 | 7 | Executive hero, gap cluster, traffic light, TEEP, KPI roll-up, production vs target |
-| **Floor At-a-Glance** | Plant | Plant | 9 | 4 | Plant hero, andon, line status strip, full-width machine grid |
-| **Plant Reliability Hub** | Analysis | Plant | 7 | 10 | MTTR/MTBF KPIs, active timer, unassigned stops, reliability trend, pareto |
-| **TEEP & Utilization** | Executive | Plant | 6 | 5 | TEEP tile, time balance, OEE by shift, loss trend, hourly production |
-| **Line Performance Board** | Line | Line | 7 | 6 | OEE hero, gap cluster, attainment, A/P/Q, state timeline, trend |
-| **Shift Huddle Board** | Shift | Line | 6 | 5 | Shift summary, pace gauge, shift progress, hourly production, pareto |
-| **Machine Station Detail** | Machine | Machine | 7 | 6 | Run state, recipe strip, speed trend, reliability, fault banner, events |
-| **Production & Pace** | Analysis | Line | 8 | 4 | Production vs target, hourly bars, takt vs actual, rate variance |
-| **Quality & Yield Lab** | Analysis | Line | 8 | 9 | Scrap/yield/FPY KPIs, scrap trend, Six Big Losses, pareto |
-| **Downtime Detective** | Analysis | Line | 8 | 5 | Active timer, unassigned stops, pareto, heatmap, event feed |
-| **Setup & Changeover** | Analysis | Line | 6 | 3 | State distribution, state timeline, setup pareto |
-| **Supervisor Cockpit** | Line | Line | 6 | 5 | KPI group, unassigned banner, downtime pad, top-N, worst lines |
-| **Operator Kiosk** | Kiosk | Machine | 7 | 6 | OEE hero, pace gauge, traffic light, shift context, timer, downtime pad |
-| **Line Andon Wall** | Kiosk | Line | 7 | 7 | Marquee, andon stack, OEE hero, traffic light, shift context, timer, fault |
-| **Maintenance Wallboard** | Kiosk | Plant | 8 | 7 | Marquee, MTTR/MTBF, reliability trend, top faults, event feed |
-| **Attainment Tracker** | Production | Line | 6 | 5 | Attainment, pace gauge, gap cluster, production vs target, hourly bar |
-| **Shift Compare** | Shift | Line | 9 | 6 | Shift summary, gap cluster, OEE hero, OEE by shift, hourly, trend |
+| **Operator Floor** | Kiosk | Machine | 8 | 12 | Identity strip, OEE hero, run state, pace, counts, downtime pad |
+| **Line Andon** | Kiosk | Line | 8 | 9 | Andon hero + supporting OEE; alert strips when bad |
+| **Maintenance Wall** | Kiosk | Plant | 8 | 10 | MTTR/MTBF/stops, unassigned stops, reliability trend |
+| **Plant Overview** | Plant | Plant | 9 | 6 | Plant hero, line status, gap cluster, grid, leaderboard |
+| **Shift Supervisor** | Shift | Line | 8 | 9 | Shift progress, losses, reason queue, vs target |
+| **Quality Pulse** | Analysis | Line | 8 | 7 | Scrap / FPY / yield + scrap trend + quality pareto |
+| **Production Board** | Production | Line | 8 | 8 | Pace, counts, product, hourly production |
+| **Analytics Starter** | Analysis | Plant | 8 | 5 | Chart-heavy signed-in analysis starter |
 
 **Wall-fit row budgets (1080p):** kiosk templates ≤ **8 rows**; plant/line/analysis templates ≤ **9 rows**. Layouts are designed to fill a 1920×1080 viewport without vertical scroll when shown via kiosk or presentation mode.
 
-**Per line** (wizard step 10): Overview → **Line Performance Board**, Shift → **Shift Huddle Board**, Detail → **Machine Station Detail**, Downtime → **Downtime Detective**, Production → **Production & Pace**, Quality → **Quality & Yield Lab**, Supervisor → **Supervisor Cockpit**, Setup → **Setup & Changeover**, Operator Kiosk, Andon → **Line Andon Wall**.
+**Per line** (wizard step 10): Supervisor → **Shift Supervisor**, Production → **Production Board**, Quality → **Quality Pulse**, Operator Floor (kiosk), Andon → **Line Andon**.
 
-**Per plant**: **Plant Command Center**, **Executive Briefing**, **Plant Reliability Hub**, **TEEP & Utilization**, **Maintenance Wallboard** (kiosk). **Floor At-a-Glance** is also created when the plant has **two or more lines**, or **any line with two or more machines**.
+**Per plant**: **Plant Overview**, **Analytics Starter**, **Maintenance Wall** (kiosk).
 
-After deploying v7.1, run **Refresh layouts** on the Dashboards page once (or `POST /api/dashboards/refresh-system-layouts`) so wizard-named dashboards pick up compact layouts. v6 system template **names** are retired on startup upsert.
+After deploying v8, run **Refresh layouts** on the Dashboards page once (or `POST /api/dashboards/refresh-system-layouts`) so wizard-named dashboards pick up the new layouts. Orphaned v7.2 system template **names** are removed on startup upsert.
 
-Frontend metadata (preview path, roles, scope, recommended flag): `frontend/src/features/builder/systemTemplateMeta.ts`. Gallery thumbnails: `frontend/public/template-previews/{slug}.svg` (replace with PNG crops from `/dev/templates` for production polish).
+Frontend metadata (preview path, roles, scope, recommended flag): `frontend/src/features/builder/systemTemplateMeta.ts`. Gallery thumbnails: `frontend/public/template-previews/{slug}.png` (crops from `/dev/templates`; see [TEMPLATE-AUDIT-2026-07-v8.md](TEMPLATE-AUDIT-2026-07-v8.md)).
 
 ### Floor display routes
 
@@ -161,12 +152,14 @@ Published and kiosk dashboards render **full-viewport without scroll** via share
 
 Signed-in dashboard preview (`/dashboards/:id`) may scroll for admin review; floor monitors should use **Open presentation** or **Open kiosk** from the dashboard header.
 
-- **Line Performance Board** — OEE hero, attainment tile, gap cluster, A/P/Q, state timeline, multi-trend.
-- **Machine Station Detail** — run-state badge, recipe-product strip, speed trend, reliability cluster, fault banner.
-- **Plant Command Center** — plant hero, line-status-strip, gap cluster, andon, plant grid, leaderboard.
-- **Floor At-a-Glance** — plant hero, andon, line-status-strip, full-width machine-grid.
-- **Shift Huddle Board** — shift summary, pace gauge, shift progress, hourly production, pareto.
-- **Operator Kiosk** — OEE hero, pace gauge, oee-traffic-light, shift context, active-downtime-timer, downtime pad (kiosk density).
+- **Operator Floor** — identity strip, OEE hero, run-state badge, pace, count-to-go, downtime pad.
+- **Line Andon** — andon stack hero, OEE ring, downtime/fault strips, line status.
+- **Maintenance Wall** — MTTR/MTBF bars, unassigned banner, reliability trend, pareto.
+- **Plant Overview** — plant hero, line-status-strip, gap cluster, plant grid, leaderboard.
+- **Shift Supervisor** — shift summary/progress, production vs target, reason queue, downtime pad.
+- **Quality Pulse** — scrap/yield/FPY rings, scrap trend, Six Big Losses, pareto.
+- **Production Board** — product strip, pace, attainment, gap, hourly bars.
+- **Analytics Starter** — KPI group, multi-trend, losses donut, reliability, pareto.
 
 ### Operator Station page (`/operator`)
 
@@ -185,11 +178,6 @@ Signed-in operators, supervisors, managers, and admins use a dedicated **multi-s
 - **Reason queue (line mode)** — on grid view / All stations: full paginated plant/line backlog.
 - **Catalog-driven reasons** — downtime reason catalog per line; PLC codes flagged **needs review** when auto-stubbed.
 - Scope filters: plant / line / machine; URL `?machine={id}` for bookmarking a station.
-- **Andon / Big Screen (kiosk)** — marquee ticker, andon stack, run-state badge, mega KPIs, fault strip.
-- **Downtime Analysis** — pareto, histogram, fault summary, operator leaderboard, heatmap, events.
-- **Production Analysis** — hourly bars, takt vs actual, quality row, loss analytics, OEE waterfall.
-- **Maintenance / Fault Focus** — MTTR/MTBF tiles, reliability trend, fault summary, pareto, events.
-- **Executive Summary** — plant hero, KPI tile group, TEEP, leaderboard, production vs target, heatmap.
 
 ### Live snapshot bindable fields (`SNAPSHOT_FIELDS`)
 
@@ -202,25 +190,28 @@ KPI tiles and stat cards can bind to: OEE/A/P/Q/TEEP %, good/reject/**rework** c
 
 ## Plant Explorer (hierarchy navigation)
 
-A dedicated navigation page for non-operator roles (Admin, Manager, Supervisor) to browse the entire enterprise. Operators are excluded (they stay limited to their assigned line).
+A dedicated navigation page for non-operator roles (Admin, Manager, Supervisor) to browse the entire enterprise. Operators are excluded (they stay limited to their assigned line). Redesigned 2026-07 from a static two-pane tree into a breadcrumb-driven, card-based drill-down navigator — see [`PLANT-EXPLORER-REDESIGN-2026-07.md`](PLANT-EXPLORER-REDESIGN-2026-07.md) for the full before/after writeup and screenshots.
 
-- **Persistent hierarchy tree**: Plant → Department → Line → Machine, expand/collapse, with live status dot, OEE % badge, thin OEE progress bar, and **active product code** on line nodes.
-- **Dashboard-style detail panel** (every hierarchy level):
-  - Sticky context header with connection state and **Open in Analytics** link.
+- **`ExplorerNavigator`** (sticky top bar): global fuzzy search/jump across the flattened hierarchy (no need to expand branches), breadcrumb trail as pills — each pill carries a status dot + OEE% badge so health stays visible while navigating up/down — quick status filter chips (Running/Idle/Down/Disconnected), and a rail toggle. Collapses to a back button + current node name on mobile.
+- **`ExplorerRail`** (collapsible quick-jump list): compact searchable list of the whole hierarchy plus recently visited nodes, for users who want the old "see everything" feel without it dominating the layout. Off-canvas drawer on mobile/tablet.
+- **`ExplorerNodeHero`**: compact "you are here" summary for the current node — OEE ring, run-state `StatusPill`, A/P/Q mini badges, and active product code.
+- **`ExplorerDrillGrid`**: responsive card grid of the current node's children — `HierarchyNodeCard` (status beacon, OEE ring, child count / active product, hover-lift) for Plant/Department/Line, `MachineGridCard` for Machine-level children. Empty and no-filter-match states included.
+- **`ExplorerDetailPanel`** (deep-dive, shown for the selected node): restyled with the widget design system (`WidgetSurface`/`WidgetFrame`/`PresentationKpi`/`ChartShell`):
+  - Sticky context header with connection state, `StatusPill`, and **Open in Analytics** link.
   - **OEE hero**: ring gauge, A/P/Q factor bars, loss chips, production totals (historian snapshot with live fallback).
-  - **OEE trend chart** (current shift or last 8h toggle) via historian.
-  - **Child comparison**: horizontal OEE leaderboard + clickable drill-down table (Plant → departments/lines, Department → lines, Line → machines).
-  - **Machine grid** cards with ring gauges (all machines on a line; worst performers at dept/plant scope).
+  - **Compare** section: OEE loss waterfall + horizontal OEE leaderboard with clickable drill-down table (Plant → departments/lines, Department → lines, Line → machines).
   - **Production chart**, **loss donut**, and **loss pareto** for the selected scope and time window.
-  - **Shift context bar**, reliability strip, and reliability trend (line/machine).
+  - **Shift context bar**, reliability strip (`PresentationKpi` ring/bar tiles), and reliability trend (line/machine).
   - **Line product strip** (line + machine scope): active product, change selector, changeover mode hint, recent product changes, and changeover-in-progress alert (SetupTracked only).
   - **Operations accordion** (line): editable line product speeds only.
   - Machine scope: rate vs ideal bar, run state, PLC speed, micro-stops.
-- **Downtime table**: recent events with category color chips and unassigned-reason count.
-- **Drill-through**: quick links to Dashboards, Analytics, Reports, Tag Browser.
-- **Search/filter** the tree by name.
+  - **Downtime table**: recent events with category color chips and unassigned-reason count.
+- **Drill-through**: quick links to Dashboards, Analytics, Reports, Admin → Tag Mapping.
+- **URL-synced**: current selection is reflected in `?scope=Level:id`, deep-linkable and back-button aware.
 - **Scope-aware**: a user only sees plants/lines within their `UserPlantScope`.
 - **Real-time**: node badges and KPI panels update live via SignalR; historian data refreshes every 60s.
+- **Responsive & motion**: single-column cards + drawer rail + collapsed breadcrumb on mobile; hover-lift on interactive cards and a drill fade/slide transition on navigation (respects `prefers-reduced-motion`); loading skeletons and a retryable error state for hierarchy fetch failures.
+- **Unified OEE color/status system** (`widgets/common.tsx`: `oeeExplorerHexColor`/`oeeExplorerBadgeColor`, `statusSurfaceTone`, `explorerRunStateColor`) drives Explorer breadcrumbs/cards, Analytics' `ModernKpiHero`, and Operator Station's `StationGrid`/`OperatorMachineHero` — the same tiered color language everywhere.
 - **Sample products** (seeded): WGT-A100, WGT-B200, PKG-STD, PKG-PREM, SPC-500 with per-line ideal cycle rates.
 
 ## Dashboard permissions

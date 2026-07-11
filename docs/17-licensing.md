@@ -8,7 +8,11 @@ ConnectOEE uses the same **offline HMAC-SHA256 license key** model as ConnectMod
 CONNECT-OEE-{base64url(JSON_payload)}.{base64url(HMAC-SHA256 signature)}
 ```
 
-Paste the full key in **Admin → License → Activate license**.
+Paste the full key **or import the `.lic` file** in **Admin → License** (Import License… / Activate license).
+
+**Node-locked keys:** Copy the server **Machine ID** from the license admin page and send it to your vendor before purchase. Keys with `MachineId` in the payload only activate on this server.
+
+The Connect License Generator writes a UTF-8 `.lic` file containing the same key as the PDF certificate. Prefer importing that file so operators never need to type the long key.
 
 ## Editions
 
@@ -25,7 +29,7 @@ Paste the full key in **Admin → License → Activate license**.
 |---------|-------|------|
 | Plants | 1 | Unlimited |
 | Lines | 2 | Unlimited |
-| PLC drivers | Mock only | Mock + Rockwell |
+| PLC drivers | Mock only | Full suite (Rockwell, Modbus TCP, OPC UA, and planned vendors) |
 | PDF reports | Disabled | Enabled |
 | Scheduled reports | Disabled | Enabled |
 | Kiosk dashboards | 1 | Unlimited |

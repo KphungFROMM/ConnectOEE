@@ -1,44 +1,19 @@
-import {
-  Button,
-  Group,
-  Menu,
-  SegmentedControl,
-  TextInput,
-  Title,
-} from '@mantine/core'
-import {
-  IconDots,
-  IconLayoutGrid,
-  IconPlus,
-  IconRefresh,
-  IconTemplate,
-} from '@tabler/icons-react'
-import type { DashboardTab } from './dashboardGrouping'
+import { Button, Group, Menu, TextInput, Title } from '@mantine/core'
+import { IconDots, IconLayoutGrid, IconPlus, IconRefresh, IconTemplate } from '@tabler/icons-react'
 
 interface DashboardsToolbarProps {
   canBuild: boolean
   search: string
-  tab: DashboardTab
   onSearchChange: (value: string) => void
-  onTabChange: (tab: DashboardTab) => void
   onNewFromTemplate: () => void
   onNewBlank: () => void
   onRefreshLayouts: () => void
 }
 
-const TAB_OPTIONS: { value: DashboardTab; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'plant', label: 'Plant' },
-  { value: 'kiosks', label: 'Kiosks' },
-  { value: 'analysis', label: 'Analysis' },
-]
-
 export function DashboardsToolbar({
   canBuild,
   search,
-  tab,
   onSearchChange,
-  onTabChange,
   onNewFromTemplate,
   onNewBlank,
   onRefreshLayouts,
@@ -53,11 +28,6 @@ export function DashboardsToolbar({
           value={search}
           onChange={(e) => onSearchChange(e.currentTarget.value)}
           style={{ minWidth: 200, maxWidth: 280 }}
-        />
-        <SegmentedControl
-          value={tab}
-          onChange={(v) => onTabChange(v as DashboardTab)}
-          data={TAB_OPTIONS}
         />
         {canBuild ? (
           <>

@@ -27,6 +27,7 @@ export interface ReportTemplate {
 
 export interface ReportTemplateDetail extends ReportTemplate {
   suggestedRanges: string[]
+  layoutJson?: string | null
 }
 
 export interface ReportRun {
@@ -103,6 +104,43 @@ export const getReportTemplates = () => apiGet<ReportTemplate[]>('/api/reports/t
 export const getReportTemplate = (id: string) => apiGet<ReportTemplateDetail>(`/api/reports/templates/${id}`)
 export const saveCustomReportTemplate = (body: { name: string; description?: string; layoutJson: string }) =>
   apiPost<ReportTemplate>('/api/reports/templates/custom', body)
+
+export async function updateCustomReportTemplate(
+  id: string,
+  body: { name: string; description?: string; layoutJson: string },
+) {
+  const res = await authFetch(`/api/reports/templates/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const msg = await res.text().catch(() => '')
+    throw new Error(msg || `Update failed: ${res.status}`)
+  }
+  return (await res.json()) as ReportTemplate
+}
+
+export async function deleteCustomReportTemplate(id: string) {
+  const res = await authFetch(`/api/reports/templates/${id}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const msg = await res.text().catch(() => '')
+    throw new Error(msg || `Delete failed: ${res.status}`)
+  }
+}
+
+export async function forkReportTemplate(id: string, name?: string) {
+  const res = await authFetch(`/api/reports/templates/${id}/fork`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name ?? null }),
+  })
+  if (!res.ok) {
+    const msg = await res.text().catch(() => '')
+    throw new Error(msg || `Fork failed: ${res.status}`)
+  }
+  return (await res.json()) as ReportTemplateDetail
+}
 
 export const getRuns = (skip = 0, take = 50, status?: string) => {
   const p = new URLSearchParams({ skip: String(skip), take: String(take) })

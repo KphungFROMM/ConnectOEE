@@ -93,8 +93,8 @@ export function LineProductStrip({ lineId, kpi, canSelect }: Props) {
         ) : ctx?.plcPartIdMapped ? (
           <Text size="sm" c="dimmed">
             Product is driven by PLC PartId. Map or unmap in{' '}
-            <Anchor component={Link} to="/tags">
-              Tag Browser
+            <Anchor component={Link} to="/admin?tab=tags">
+              Tag Mapping
             </Anchor>
             .
           </Text>

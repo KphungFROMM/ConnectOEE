@@ -47,10 +47,23 @@ public enum ReworkTrackingMode
 public enum DriverType
 {
     Mock = 0,
+    /// <summary>ControlLogix / CompactLogix / GuardLogix via EtherNet/IP (CIP tags).</summary>
     RockwellEthernetIp = 1,
     OpcUa = 2,
     ModbusTcp = 3,
-    SiemensS7 = 4
+    SiemensS7 = 4,
+    /// <summary>MicroLogix (1100/1400/…) via EtherNet/IP (PCCC data-table addressing).</summary>
+    RockwellMicroLogix = 5,
+    /// <summary>Micro800 family (Micro820/850/870/…) via EtherNet/IP (CIP symbolic tags).</summary>
+    RockwellMicro800 = 6,
+}
+
+public static class DriverTypeExtensions
+{
+    public static bool IsRockwell(this DriverType type) =>
+        type is DriverType.RockwellEthernetIp
+            or DriverType.RockwellMicroLogix
+            or DriverType.RockwellMicro800;
 }
 
 /// <summary>Connection health surfaced to the UI per AGENTS.md UX rules.</summary>
@@ -117,7 +130,11 @@ public enum TagDataType
     Real = 4,
     String = 5,
     Udt = 6,
-    Array = 7
+    Array = 7,
+    /// <summary>16-bit unsigned (CIP UINT / WORD) — common for Micro800 analog I/O.</summary>
+    UInt = 8,
+    /// <summary>CIP TIME duration (milliseconds).</summary>
+    Time = 9,
 }
 
 /// <summary>Visibility/scope of a dashboard.</summary>
@@ -189,6 +206,18 @@ public enum LineProductionMode
     DedicatedProduct = 1,
     /// <summary>No PartId / recipe tracking — performance uses line fallback only.</summary>
     NoProductTracking = 2,
+}
+
+/// <summary>
+/// Physical topology of machines on a line. Independent = parallel peers (sum counts).
+/// Continuous = serial A→B→C; line counts come from the designated output station.
+/// </summary>
+public enum LineTopology
+{
+    /// <summary>Machines produce independently; line rollup sums counts and averages A/P.</summary>
+    Independent = 0,
+    /// <summary>Product feeds station-to-station; line output counts from one machine.</summary>
+    Continuous = 1,
 }
 
 /// <summary>How product changes are recorded on a line.</summary>

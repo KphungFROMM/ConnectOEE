@@ -1,0 +1,63 @@
+/*
+ * Shared hover/motion utilities for premium card surfaces (Plant Explorer drill grid,
+ * machine grid cards, Operator station grid). Centralized so behavior — including
+ * prefers-reduced-motion — stays consistent everywhere it's used.
+ */
+.hoverLift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.hoverLift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+.hoverLift:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+.hoverLift:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-5);
+  outline-offset: 2px;
+}
+
+.explorerFadeIn {
+  animation: explorerFadeIn 0.2s ease both;
+}
+
+.explorerDrillTransition {
+  animation: explorerDrillIn 0.22s ease both;
+}
+
+@keyframes explorerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes explorerDrillIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hoverLift,
+  .hoverLift:hover,
+  .hoverLift:active {
+    transition: none;
+    transform: none;
+  }
+  .explorerFadeIn,
+  .explorerDrillTransition {
+    animation: none;
+  }
+}

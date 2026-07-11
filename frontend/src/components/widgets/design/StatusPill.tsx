@@ -16,30 +16,60 @@ function stateIcon(state?: string | null) {
   }
 }
 
-export function StatusPill({ state, density }: { state?: string | null; density?: WidgetDensity }) {
+/** Compact state chip — re-exports pill look for strips/lists. Prefer StatusVisual for widgets. */
+export function StatusPill({
+  state,
+  density,
+  context,
+}: {
+  state?: string | null
+  density?: WidgetDensity
+  context?: string | null
+}) {
   const color = stateColor(state)
   const Icon = stateIcon(state)
-  const size = scaledSize(density === 'kiosk' ? 20 : 14, density)
+  const isKiosk = density === 'kiosk'
+  const disc = scaledSize(isKiosk ? 36 : 28, density)
+  const iconSize = scaledSize(isKiosk ? 15 : 12, density)
 
   return (
-    <Group gap={density === 'kiosk' ? 12 : 8} justify="center" wrap="nowrap">
+    <Group
+      gap={isKiosk ? 10 : 8}
+      justify="center"
+      wrap="nowrap"
+      px={isKiosk ? 12 : 8}
+      py={isKiosk ? 10 : 6}
+      style={{
+        borderRadius: 12,
+        border: `1px solid color-mix(in srgb, ${color} 35%, var(--mantine-color-default-border))`,
+        background: `color-mix(in srgb, ${color} 10%, var(--mantine-color-body))`,
+        borderLeft: `4px solid ${color}`,
+      }}
+    >
       <span
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: scaledSize(density === 'kiosk' ? 72 : 48, density),
-          height: scaledSize(density === 'kiosk' ? 72 : 48, density),
+          width: disc,
+          height: disc,
           borderRadius: '50%',
           backgroundColor: color,
-          boxShadow: `0 0 0 ${scaledSize(8, density)}px ${color}33, 0 0 ${scaledSize(24, density)}px ${color}44`,
+          flexShrink: 0,
         }}
       >
-        <Icon size={size} color="#fff" stroke={2.5} />
+        <Icon size={iconSize} color="#fff" stroke={2.5} />
       </span>
-      <Text fw={800} size={density === 'kiosk' ? 'xl' : 'md'}>
-        {state ?? 'Unknown'}
-      </Text>
+      <div style={{ minWidth: 0 }}>
+        <Text fw={800} size={isKiosk ? 'lg' : 'sm'} lh={1.1} truncate>
+          {state ?? 'Unknown'}
+        </Text>
+        {context ? (
+          <Text size="xs" c="dimmed" truncate>
+            {context}
+          </Text>
+        ) : null}
+      </div>
     </Group>
   )
 }

@@ -20,6 +20,9 @@ public record BrowseTag(
     public string FlattenedPath => FullPath;
 }
 
+/// <summary>Progress update while a driver enumerates tags / data tables.</summary>
+public record BrowseProgress(int Percent, string Message);
+
 /// <summary>A live value sample for a single tag path, carrying quality + timestamp.</summary>
 public record TagValueSample(
     string FullPath,
@@ -42,7 +45,9 @@ public interface ITagBrowsingDriver
     bool SupportsBrowsing { get; }
 
     /// <summary>Returns the controller tag namespace as a hierarchical tree.</summary>
-    Task<IReadOnlyList<BrowseTag>> BrowseAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<BrowseTag>> BrowseAsync(
+        CancellationToken ct = default,
+        IProgress<BrowseProgress>? progress = null);
 
     /// <summary>Reads current values for the given fully-qualified tag paths.</summary>
     Task<IReadOnlyList<TagValueSample>> ReadValuesAsync(IEnumerable<TagReadRequest> requests, CancellationToken ct = default);

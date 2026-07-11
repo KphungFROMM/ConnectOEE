@@ -1,7 +1,7 @@
 import { Group, Stack, Text } from '@mantine/core'
 import { MetricLabel } from '../../help/HelpTrigger'
 import type { WidgetDensity } from './widgetTheme'
-import { scaledSize } from './widgetTheme'
+import { wallHeroFontSize } from './widgetTheme'
 
 export function MetricHero({
   label,
@@ -11,6 +11,7 @@ export function MetricHero({
   density,
   centered = false,
   helpId,
+  subtitle,
 }: {
   label?: string
   value: string
@@ -19,8 +20,9 @@ export function MetricHero({
   density?: WidgetDensity
   centered?: boolean
   helpId?: string
+  subtitle?: string
 }) {
-  const fontSize = scaledSize(density === 'kiosk' ? 52 : 36, density)
+  const fontSize = wallHeroFontSize(density)
 
   return (
     <Stack gap={density === 'kiosk' ? 8 : 4} justify="center" h="100%" align={centered ? 'center' : undefined}>
@@ -43,6 +45,11 @@ export function MetricHero({
           </Text>
         ) : null}
       </Group>
+      {subtitle ? (
+        <Text size={density === 'kiosk' ? 'sm' : 'xs'} c="dimmed" ta={centered ? 'center' : undefined}>
+          {subtitle}
+        </Text>
+      ) : null}
     </Stack>
   )
 }

@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
-import { Box, Card, SimpleGrid, Stack, Text } from '@mantine/core'
+import { Box, SimpleGrid, Stack, Text } from '@mantine/core'
 import type { DrillNode, EntityLevel, KpiSnapshot } from '../../lib/historian'
 import { DrillDownTable } from '../analytics/DrillDownTable'
 import { AnalyticsEmpty } from '../analytics/AnalyticsEmpty'
 import { OeeWaterfall } from '../analytics/OeeWaterfall'
 import { LeaderboardBars } from '../widgets/charts/LeaderboardBars'
+import { WidgetFrame } from '../widgets/common'
 
 interface Props {
   parentLevel: EntityLevel
@@ -28,37 +29,34 @@ export function ExplorerChildCompare({ parentLevel, children, initialLoading, sn
 
   return (
     <Stack gap="md">
+      <Text fw={700} size="sm" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.03em' }}>
+        Compare
+      </Text>
       {snapshot ? (
-        <Card withBorder radius="md" padding="md">
-          <Text fw={600} mb="sm">
-            OEE loss waterfall
-          </Text>
+        <WidgetFrame title="OEE loss waterfall">
           <OeeWaterfall snapshot={snapshot} mode="minutes" />
-        </Card>
+        </WidgetFrame>
       ) : null}
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-      <Card withBorder radius="md" padding="md">
-        <Text fw={600} mb="sm">
-          OEE comparison
-        </Text>
-        {initialLoading && barItems.length === 0 ? (
-          <Text size="sm" c="dimmed">
-            Loading…
-          </Text>
-        ) : barItems.length === 0 ? (
-          <AnalyticsEmpty message="No child data in range." />
-        ) : (
-          <Box h={Math.max(200, barItems.length * 40)}>
-            <LeaderboardBars items={barItems} maxValue={100} />
-          </Box>
-        )}
-      </Card>
-      <DrillDownTable
-        parentLevel={parentLevel}
-        children={children}
-        loading={Boolean(initialLoading && children.length === 0)}
-        onSelect={onSelect}
-      />
+        <WidgetFrame title="OEE comparison">
+          {initialLoading && barItems.length === 0 ? (
+            <Text size="sm" c="dimmed">
+              Loading…
+            </Text>
+          ) : barItems.length === 0 ? (
+            <AnalyticsEmpty message="No child data in range." />
+          ) : (
+            <Box h={Math.max(200, barItems.length * 40)}>
+              <LeaderboardBars items={barItems} maxValue={100} />
+            </Box>
+          )}
+        </WidgetFrame>
+        <DrillDownTable
+          parentLevel={parentLevel}
+          children={children}
+          loading={Boolean(initialLoading && children.length === 0)}
+          onSelect={onSelect}
+        />
       </SimpleGrid>
     </Stack>
   )

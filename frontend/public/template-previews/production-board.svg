@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="Production Board">
+  <rect width="640" height="360" fill="#F4F5F7"/>
+  <rect x="16" y="16" width="400" height="28" rx="6" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="428" y="16" width="196" height="28" rx="6" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="16" y="56" width="200" height="150" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="44" y="100" width="144" height="16" rx="4" fill="#CFE0FB"/>
+  <rect x="44" y="130" width="144" height="28" rx="6" fill="#E8F0FE"/>
+  <rect x="228" y="56" width="200" height="150" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <text x="328" y="140" text-anchor="middle" font-family="Segoe UI,Arial" font-size="36" font-weight="700" fill="#2E9E5B">96%</text>
+  <rect x="440" y="56" width="184" height="150" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="460" y="100" width="144" height="12" rx="3" fill="#D1FAE5"/>
+  <rect x="460" y="124" width="100" height="12" rx="3" fill="#FEE2E2"/>
+  <rect x="16" y="220" width="360" height="60" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="388" y="220" width="236" height="60" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="16" y="294" width="608" height="50" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="40" y="310" width="36" height="22" rx="3" fill="#2563EB"/>
+  <rect x="88" y="316" width="36" height="16" rx="3" fill="#93C5FD"/>
+  <rect x="136" y="306" width="36" height="26" rx="3" fill="#2563EB"/>
+  <rect x="184" y="312" width="36" height="20" rx="3" fill="#93C5FD"/>
+  <rect x="232" y="308" width="36" height="24" rx="3" fill="#2563EB"/>
+  <rect x="280" y="318" width="36" height="14" rx="3" fill="#93C5FD"/>
+</svg>

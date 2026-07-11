@@ -4,6 +4,22 @@ import { RingGaugeLabel } from '../charts/RingGaugeLabel'
 
 const VALUE_OUTSIDE_MAX_SIZE = 112
 
+/** Cap stroke so the hole stays large enough for in-ring % text. */
+function defaultThickness(size: number, outside: boolean, compact: boolean): number {
+  if (outside) return size > 180 ? 18 : size > 120 ? 14 : compact ? 11 : 8
+  // In-ring: thinner relative to size (≈9% of diameter, clamped).
+  return Math.max(6, Math.min(12, Math.round(size * 0.09)))
+}
+
+/** Font size from inner diameter and digit string length — not outer ring size. */
+export function fitRingValueFontPx(innerDiameter: number, text: string): number {
+  const chars = Math.max(1, text.length)
+  // Bold tabular glyphs are wider than body text; keep clear air inside the stroke.
+  const fromWidth = (innerDiameter * 0.72) / (chars * 0.7)
+  const fromHeight = innerDiameter * 0.34
+  return Math.max(11, Math.min(36, Math.floor(Math.min(fromWidth, fromHeight))))
+}
+
 export function GaugeRing({
   value,
   label,
@@ -14,6 +30,7 @@ export function GaugeRing({
   compact = false,
   ringColor,
   valueOutside,
+  decimals,
 }: {
   value: number
   label?: string
@@ -25,6 +42,8 @@ export function GaugeRing({
   ringColor?: string
   /** Render % below the ring instead of inside (defaults to true when size ≤ 112) */
   valueOutside?: boolean
+  /** Fractional digits for the in-ring / below-ring percentage string. */
+  decimals?: number
 }) {
   const color =
     ringColor ??
@@ -32,20 +51,21 @@ export function GaugeRing({
       ? factorColorByLabel(label)
       : oeeColor())
   const outside = valueOutside ?? size <= VALUE_OUTSIDE_MAX_SIZE
-  const ringThickness = thickness ?? (size > 180 ? 18 : size > 120 ? 14 : compact ? 11 : outside ? 8 : 10)
-  const mainSize = compact
-    ? size >= 112
-      ? 'lg'
-      : 'md'
-    : size > 200
-      ? '52px'
-      : size > 160
-        ? '42px'
-        : size > 120
-          ? '32px'
-          : '24px'
+  const ringThickness = thickness ?? defaultThickness(size, outside, compact)
+  const inner = Math.max(8, size - 2 * ringThickness)
+
+  const frac =
+    decimals != null && Number.isFinite(decimals)
+      ? Math.max(0, Math.min(3, Math.floor(decimals)))
+      : label === 'OEE' || sublabel || compact || outside
+        ? 1
+        : 0
+  const pct = `${value.toFixed(frac)}%`
+  const fontPx = fitRingValueFontPx(inner, pct)
+  const mainSize = compact ? (size >= 112 ? 'lg' : 'md') : `${fontPx}px`
+
+  // Never put the metric title inside the ring when it is shown below.
   const inRingSublabel = outside || showLabelBelow || compact ? undefined : sublabel
-  const pct = `${value.toFixed(label === 'OEE' || sublabel || compact || outside ? 1 : 0)}%`
 
   return (
     <Stack align="center" justify="center" gap={showLabelBelow || outside ? 4 : 2} h="100%">
@@ -57,7 +77,7 @@ export function GaugeRing({
         sections={[{ value: Math.min(100, Math.max(0, value)), color }]}
         label={
           outside ? undefined : (
-            <RingGaugeLabel size={mainSize} color={color} sublabel={inRingSublabel}>
+            <RingGaugeLabel size={mainSize} color={color} sublabel={inRingSublabel} maxWidth={inner * 0.82}>
               {pct}
             </RingGaugeLabel>
           )

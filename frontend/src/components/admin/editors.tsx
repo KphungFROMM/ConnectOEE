@@ -47,15 +47,20 @@ import {
   listPlants,
   listSignals,
   mapTag,
+  testConnection,
   updateConnection,
   updateCountIngestMode,
+  updateLineOee,
   updateRunStateIngestMode,
+  type ConnectionTestResult,
   type DriverStatus,
   type PlantDto,
   type PlcConnection,
   type SignalDto,
 } from '../../lib/admin'
 import { getHierarchyTree, type PlantNode } from '../../lib/hierarchy'
+import { resolveLineTopology, type LineTopologyMode } from '../../lib/lineTopology'
+import { LINE_TOPOLOGY_OPTIONS } from '../../lib/idealRate'
 import { getLicenseStatus } from '../../lib/license'
 import {
   DEFAULT_PLC_DRIVER,
@@ -131,10 +136,11 @@ export function HierarchyEditor({
   const isDeptWizard = wizardStep === 'department'
   const isLineWizard = wizardStep === 'line'
   const isMachineWizard = wizardStep === 'machine'
-  const showPlant = wizardStep === 'full' || wizardStep === 'plant'
-  const showDept = wizardStep === 'full' || wizardStep === 'department'
-  const showLine = wizardStep === 'full' || wizardStep === 'line'
-  const showMachine = wizardStep === 'full' || wizardStep === 'machine'
+  // Full admin mode uses HierarchyAdminTree Add-child flows; create strips only for wizard steps.
+  const showPlant = wizardStep === 'plant'
+  const showDept = wizardStep === 'department'
+  const showLine = wizardStep === 'line'
+  const showMachine = wizardStep === 'machine'
 
   const [plantName, setPlantName] = useState('')
   const [plantCode, setPlantCode] = useState('')
@@ -148,6 +154,7 @@ export function HierarchyEditor({
   const [lineName, setLineName] = useState('')
   const [lineNameTouched, setLineNameTouched] = useState(false)
   const [lineRate, setLineRate] = useState<number>(1800)
+  const [lineTopology, setLineTopology] = useState<LineTopologyMode>('Independent')
   const [machineLine, setMachineLine] = useState<string | null>(null)
   const [machineName, setMachineName] = useState('')
   const [machineNameTouched, setMachineNameTouched] = useState(false)
@@ -230,10 +237,31 @@ export function HierarchyEditor({
     e?.preventDefault()
     setLineNameTouched(true)
     if (!lineDept || !lineName.trim()) return
-    await run(
-      () => createLine({ departmentId: lineDept, name: lineName.trim(), idealRatePerHour: lineRate }),
-      () => setLineName(''),
-    )
+    await run(async () => {
+      const created = await createLine({
+        departmentId: lineDept,
+        name: lineName.trim(),
+        idealRatePerHour: lineRate,
+      })
+      if (lineTopology === 'Continuous' && created?.id) {
+        const cfg = await getLineOee(created.id)
+        await updateLineOee(created.id, {
+          idealRatePerHour: cfg.idealRatePerHour,
+          targetOeePct: cfg.targetOeePct,
+          targetAvailabilityPct: cfg.targetAvailabilityPct,
+          targetPerformancePct: cfg.targetPerformancePct,
+          targetQualityPct: cfg.targetQualityPct,
+          microStopThresholdSec: cfg.microStopThresholdSec,
+          productionMode: cfg.productionMode,
+          changeoverMode: cfg.changeoverMode,
+          reworkTracking: cfg.reworkTracking,
+          topology: 'Continuous',
+        })
+      }
+    }, () => {
+      setLineName('')
+      setLineTopology('Independent')
+    })
   }
 
   async function addMachine(e?: React.FormEvent) {
@@ -312,9 +340,16 @@ export function HierarchyEditor({
                 {d.lines.map((l) => (
                   <Group key={l.id} pl={16} justify="space-between" wrap="nowrap">
                     <Text size="sm">{l.name}</Text>
-                    <Badge variant="light" size="sm">
-                      Line
-                    </Badge>
+                    <Group gap={6}>
+                      {(l.topology ?? 'Independent') === 'Continuous' ? (
+                        <Badge variant="light" size="sm" color="violet">
+                          Continuous
+                        </Badge>
+                      ) : null}
+                      <Badge variant="light" size="sm">
+                        Line
+                      </Badge>
+                    </Group>
                   </Group>
                 ))}
               </div>
@@ -387,16 +422,13 @@ export function HierarchyEditor({
     (isLineWizard && deptOpts.length === 0) ||
     (isMachineWizard && lineOpts.length === 0)
 
+  if (!isWizard) {
+    return <HierarchyAdminTree tree={tree} plantMeta={plantMeta} onRefresh={refresh} />
+  }
+
   return (
     <Stack>
-      {isWizard ? renderWizardPreview() : (
-        <Card withBorder radius="md" padding="md">
-          <Text fw={600} mb="xs">
-            Hierarchy
-          </Text>
-          <HierarchyAdminTree tree={tree} plantMeta={plantMeta} onRefresh={refresh} />
-        </Card>
-      )}
+      {renderWizardPreview()}
 
       {renderPrerequisiteAlert()}
       {showPlant && !prerequisiteBlocksForm ? (
@@ -526,6 +558,19 @@ export function HierarchyEditor({
                 min={1}
                 required
               />
+              <Select
+                label="Line topology"
+                data={LINE_TOPOLOGY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                value={lineTopology}
+                onChange={(v) => setLineTopology((v as LineTopologyMode) ?? 'Independent')}
+                description={LINE_TOPOLOGY_OPTIONS.find((o) => o.value === lineTopology)?.description}
+              />
+              {lineTopology === 'Continuous' ? (
+                <Alert color="violet" variant="light">
+                  After you add machines, set the output and pacing stations in Admin → Hierarchy (defaults to the last
+                  machine in sequence).
+                </Alert>
+              ) : null}
               <Button type="submit" disabled={!lineDept || !lineName.trim()} fullWidth>
                 Add line
               </Button>
@@ -558,6 +603,18 @@ export function HierarchyEditor({
                 placeholder="Pick line"
                 required
               />
+              {(() => {
+                const line = machineLine
+                  ? tree.flatMap((p) => p.departments.flatMap((d) => d.lines)).find((l) => l.id === machineLine)
+                  : null
+                if (!line || (line.topology ?? 'Independent') !== 'Continuous') return null
+                return (
+                  <Alert color="violet" variant="light" title="Continuous line">
+                    Add stations in process order. Line good/reject come from the output station (default: last machine).
+                    You can change output/pacing later in Admin → Hierarchy.
+                  </Alert>
+                )
+              })()}
               <TextInput
                 label="Machine name"
                 placeholder="e.g. Filler 1"
@@ -597,18 +654,21 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
   const [driverType, setDriverType] = useState(DEFAULT_PLC_DRIVER)
   const [endpoint, setEndpoint] = useState('')
   const [path, setPath] = useState('1,0')
+  const [modbusPort, setModbusPort] = useState(502)
   const [lineId, setLineId] = useState<string | null>(null)
   const [pollIntervalMs, setPollIntervalMs] = useState(1000)
   const [enabled, setEnabled] = useState(true)
   const [editConn, setEditConn] = useState<PlcConnection | null>(null)
   const [nameTouched, setNameTouched] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const [rockwellDriverEnabled, setRockwellDriverEnabled] = useState(true)
+  const [plcDriversEnabled, setPlcDriversEnabled] = useState(true)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null)
 
   const driverDef = getPlcDriver(driverType)
   const needsEndpoint = driverRequiresEndpoint(driverDef.profile)
-  const needsPath = driverRequiresPath(driverDef.profile)
-  const driverOptions = plcDriverSelectData({ rockwellDriverEnabled })
+  const needsPath = driverRequiresPath(driverDef)
+  const driverOptions = plcDriverSelectData({ plcDriversEnabled })
 
   const reload = () => {
     void listConnections().then(setConns).catch(() => undefined)
@@ -617,7 +677,7 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
   useEffect(() => {
     reload()
     void getLicenseStatus()
-      .then((s) => setRockwellDriverEnabled(s.rockwellDriverEnabled))
+      .then((s) => setPlcDriversEnabled(s.plcDriversEnabled))
       .catch(() => undefined)
     const t = setInterval(() => {
       void getDriverStatus().then(setDriverHealth).catch(() => undefined)
@@ -631,9 +691,34 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
     driverHealth.filter((d) => d.connectionId).map((d) => [d.connectionId!, d]),
   )
 
-  function endpointSummary(type: string, endpointValue?: string | null): string {
+  function endpointSummary(type: string, endpointValue?: string | null, unitPath?: string | null): string {
     if (type === 'Mock') return 'Simulator'
+    if (type === 'ModbusTcp' && endpointValue) {
+      const unit = unitPath?.trim() ? ` · unit ${unitPath.trim()}` : ''
+      return `${endpointValue}${unit}`
+    }
     return endpointValue ?? '—'
+  }
+
+  /** Split stored `host:port` for Modbus form fields. */
+  function parseModbusEndpoint(stored?: string | null): { host: string; port: number } {
+    const raw = (stored ?? '').trim()
+    if (!raw) return { host: '', port: 502 }
+    const colon = raw.lastIndexOf(':')
+    if (colon > 0) {
+      const portPart = raw.slice(colon + 1)
+      const portNum = Number(portPart)
+      if (Number.isInteger(portNum) && portNum > 0 && portNum <= 65535) {
+        return { host: raw.slice(0, colon), port: portNum }
+      }
+    }
+    return { host: raw, port: 502 }
+  }
+
+  function formatModbusEndpoint(host: string, port: number): string {
+    const h = host.trim()
+    if (!h) return ''
+    return port === 502 ? h : `${h}:${port}`
   }
 
   function healthBadge(conn: PlcConnection) {
@@ -658,8 +743,14 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
     const next = getPlcDriver(value)
     if (!next.implemented) return
     setDriverType(value)
-    if (driverRequiresPath(next.profile) && !path.trim()) {
+    setTestResult(null)
+    if (next.profile === 'modbusTcp') {
+      setModbusPort(502)
+      setPath(next.defaultPath ?? '1')
+    } else if (driverRequiresPath(next) && !path.trim()) {
       setPath(next.defaultPath ?? '1,0')
+    } else if (!driverRequiresPath(next)) {
+      setPath(next.defaultPath ?? '')
     }
   }
 
@@ -667,22 +758,68 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
     if (!formName.trim()) return false
     const def = getPlcDriver(formDriver)
     if (driverRequiresEndpoint(def.profile) && !formEndpoint.trim()) return false
-    if (driverRequiresPath(def.profile) && !formPath.trim()) return false
+    if (driverRequiresPath(def) && !formPath.trim()) return false
+    return true
+  }
+
+  /** Test only needs driver-specific fields (name is for save, not reachability). */
+  function canTest(formDriver: string, formEndpoint: string, formPath: string): boolean {
+    const def = getPlcDriver(formDriver)
+    if (!def.implemented) return false
+    if (driverRequiresEndpoint(def.profile) && !formEndpoint.trim()) return false
+    if (driverRequiresPath(def) && !formPath.trim()) return false
     return true
   }
 
   function connectionBody(formName: string, formDriver: string, formEndpoint: string, formPath: string) {
     const def = getPlcDriver(formDriver)
     const reqEndpoint = driverRequiresEndpoint(def.profile)
-    const reqPath = driverRequiresPath(def.profile)
+    const reqPath = driverRequiresPath(def)
+    const storedEndpoint =
+      def.profile === 'modbusTcp' && reqEndpoint
+        ? formatModbusEndpoint(formEndpoint, modbusPort)
+        : reqEndpoint
+          ? formEndpoint.trim()
+          : undefined
     return {
       name: formName.trim(),
       driverType: formDriver,
-      endpoint: reqEndpoint ? formEndpoint.trim() : undefined,
+      endpoint: storedEndpoint,
       path: reqPath ? formPath.trim() : undefined,
       lineId,
       pollIntervalMs,
       enabled,
+    }
+  }
+
+  async function runTest() {
+    setTestResult(null)
+    if (!canTest(driverType, endpoint, path)) return
+    setTesting(true)
+    try {
+      const def = getPlcDriver(driverType)
+      const testEndpoint =
+        def.profile === 'modbusTcp'
+          ? formatModbusEndpoint(endpoint, modbusPort)
+          : driverRequiresEndpoint(def.profile)
+            ? endpoint.trim()
+            : undefined
+      const result = await testConnection({
+        driverType,
+        endpoint: testEndpoint,
+        path: driverRequiresPath(def) ? path.trim() : undefined,
+      })
+      setTestResult(result)
+      notifications.show({
+        message: result.message,
+        color: result.ok ? 'green' : 'red',
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Connection test failed'
+      setTestResult({ ok: false, message })
+      notifications.show({ message, color: 'red' })
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -697,13 +834,22 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
     setEditConn(c)
     setName(c.name)
     setDriverType(c.driverType)
-    setEndpoint(c.endpoint ?? '')
-    setPath(c.path ?? '1,0')
+    const def = getPlcDriver(c.driverType)
+    if (def.profile === 'modbusTcp') {
+      const parsed = parseModbusEndpoint(c.endpoint)
+      setEndpoint(parsed.host)
+      setModbusPort(parsed.port)
+      setPath(c.path ?? def.defaultPath ?? '1')
+    } else {
+      setEndpoint(c.endpoint ?? '')
+      setPath(c.path ?? def.defaultPath ?? '1,0')
+    }
     setLineId(c.lineId ?? null)
     setPollIntervalMs(c.pollIntervalMs)
     setEnabled(c.enabled)
     setFormError(null)
     setNameTouched(false)
+    setTestResult(null)
   }
 
   function closeEdit() {
@@ -711,11 +857,13 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
     setName('')
     setEndpoint('')
     setPath('1,0')
+    setModbusPort(502)
     setLineId(null)
     setPollIntervalMs(1000)
     setEnabled(true)
     setDriverType(DEFAULT_PLC_DRIVER)
     setFormError(null)
+    setTestResult(null)
   }
 
   async function saveEdit() {
@@ -749,6 +897,7 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
       setLineId(null)
       setPollIntervalMs(1000)
       setEnabled(true)
+      setTestResult(null)
       reload()
       onChange?.()
       notifications.show({ message: 'Connection added', color: 'green' })
@@ -821,23 +970,80 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
           <>
             <TextInput
               label={driverDef.profile === 'opcUa' ? 'Endpoint URL' : 'IP address'}
-              placeholder={driverDef.profile === 'opcUa' ? 'opc.tcp://10.0.0.49:4840' : '10.0.0.49'}
+              placeholder={driverDef.profile === 'opcUa' ? 'opc.tcp://127.0.0.1:50000' : '10.0.0.49'}
               value={endpoint}
-              onChange={(e) => setEndpoint(e.currentTarget.value)}
+              onChange={(e) => {
+                setEndpoint(e.currentTarget.value)
+                setTestResult(null)
+              }}
               required
             />
-            {needsPath ? (
+            {driverDef.profile === 'modbusTcp' ? (
+              <Group grow>
+                <NumberInput
+                  label="TCP port"
+                  min={1}
+                  max={65535}
+                  value={modbusPort}
+                  onChange={(v) => {
+                    setModbusPort(typeof v === 'number' ? v : 502)
+                    setTestResult(null)
+                  }}
+                  required
+                />
+                <NumberInput
+                  label="Unit ID"
+                  min={0}
+                  max={255}
+                  value={Number(path) || 1}
+                  onChange={(v) => {
+                    setPath(String(typeof v === 'number' ? v : 1))
+                    setTestResult(null)
+                  }}
+                  required
+                />
+              </Group>
+            ) : null}
+            {driverDef.profile === 'ethernetIp' && needsPath ? (
               <TextInput
                 label="CPU path / slot"
-                placeholder={driverDef.defaultPath ?? '1,0'}
+                placeholder={driverDef.defaultPath || '1,0'}
                 value={path}
-                onChange={(e) => setPath(e.currentTarget.value)}
+                onChange={(e) => {
+                  setPath(e.currentTarget.value)
+                  setTestResult(null)
+                }}
                 required
               />
             ) : null}
           </>
         ) : null}
+        {testResult ? (
+          <Alert color={testResult.ok ? 'green' : 'red'} variant="light" title={testResult.ok ? 'Connection OK' : 'Connection failed'}>
+            {testResult.message}
+          </Alert>
+        ) : null}
       </Stack>
+    )
+  }
+
+  function renderFormActions(primaryLabel: string, onPrimary: () => void) {
+    const ready = canSubmit(name, driverType, endpoint, path)
+    const testReady = canTest(driverType, endpoint, path)
+    return (
+      <Group mt="md" grow>
+        <Button
+          variant="default"
+          loading={testing}
+          disabled={!testReady || testing}
+          onClick={() => void runTest()}
+        >
+          Test connection
+        </Button>
+        <Button disabled={!ready || testing} onClick={onPrimary}>
+          {primaryLabel}
+        </Button>
+      </Group>
     )
   }
 
@@ -854,7 +1060,7 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
             {!c.enabled ? <Badge size="xs" color="gray">Disabled</Badge> : null}
           </Group>
           <Text size="xs" c="dimmed">
-            {endpointSummary(c.driverType, c.endpoint)} · {c.pollIntervalMs}ms
+            {endpointSummary(c.driverType, c.endpoint, c.path)} · {c.pollIntervalMs}ms
             {c.lineId && lineLabelById.has(c.lineId) ? ` · ${lineLabelById.get(c.lineId)}` : ''}
             {c.tagCount > 0 ? ` · ${c.tagCount} mapped tag(s)` : ''}
           </Text>
@@ -885,12 +1091,15 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
             </Stack>
           </Card>
         ) : null}
-        <form onSubmit={add}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void add()
+          }}
+        >
           <Stack gap="md">
             {renderConnectionFields()}
-            <Button type="submit" disabled={!canSubmit(name, driverType, endpoint, path)} fullWidth>
-              Add PLC connection
-            </Button>
+            {renderFormActions('Add PLC connection', () => void add())}
             <Text size="sm" c="dimmed">
               Add another connection or click <strong>Next</strong> when ready.
             </Text>
@@ -899,9 +1108,7 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
         <Drawer opened={!!editConn} onClose={closeEdit} title="Edit PLC connection" position="right" size="md">
           <Stack>
             {renderConnectionFields(true)}
-            <Button onClick={() => void saveEdit()} disabled={!canSubmit(name, driverType, endpoint, path)}>
-              Save changes
-            </Button>
+            {renderFormActions('Save changes', () => void saveEdit())}
           </Stack>
         </Drawer>
       </Stack>
@@ -938,7 +1145,7 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
                     <Badge variant="light">{getPlcDriverLabel(c.driverType)}</Badge>
                   </Table.Td>
                   <Table.Td>{healthBadge(c)}</Table.Td>
-                  <Table.Td>{endpointSummary(c.driverType, c.endpoint)}</Table.Td>
+                  <Table.Td>{endpointSummary(c.driverType, c.endpoint, c.path)}</Table.Td>
                   <Table.Td>{c.pollIntervalMs}ms</Table.Td>
                   <Table.Td>
                     <Group gap={4} wrap="nowrap">
@@ -962,17 +1169,13 @@ export function PlcEditor({ onChange, wizardMode = false }: { onChange?: () => v
           Add connection
         </Text>
         {renderConnectionFields(true)}
-        <Button mt="md" disabled={!canSubmit(name, driverType, endpoint, path)} onClick={() => void add()}>
-          Add
-        </Button>
+        {renderFormActions('Add', () => void add())}
       </Card>
 
       <Drawer opened={!!editConn} onClose={closeEdit} title="Edit PLC connection" position="right" size="md">
         <Stack>
           {renderConnectionFields(true)}
-          <Button onClick={() => void saveEdit()} disabled={!canSubmit(name, driverType, endpoint, path)}>
-            Save changes
-          </Button>
+          {renderFormActions('Save changes', () => void saveEdit())}
         </Stack>
       </Drawer>
     </Stack>
@@ -985,6 +1188,16 @@ function findMachineLineId(tree: PlantNode[], machineId: string): string | null 
       for (const l of d.lines) {
         if (l.machines.some((m) => m.id === machineId)) return l.id
       }
+    }
+  }
+  return null
+}
+
+function findLineNode(tree: PlantNode[], lineId: string) {
+  for (const p of tree) {
+    for (const d of p.departments) {
+      const line = d.lines.find((l) => l.id === lineId)
+      if (line) return line
     }
   }
   return null
@@ -1057,6 +1270,30 @@ export function TagMappingEditor({
 
   const selectedConnection = connections.find((c) => c.id === connectionId)
   const connectionDriverLabel = selectedConnection ? getPlcDriverLabel(selectedConnection.driverType) : undefined
+
+  const continuousLineHint = useMemo(() => {
+    const lineId =
+      (machineId ? findMachineLineId(tree, machineId) : null) ??
+      selectedConnection?.lineId ??
+      null
+    if (!lineId) return null
+    const line = findLineNode(tree, lineId)
+    if (!line || (line.topology ?? 'Independent') !== 'Continuous') return null
+    const resolved = resolveLineTopology(
+      {
+        topology: 'Continuous',
+        lineOutputMachineId: line.lineOutputMachineId,
+        pacingMachineId: line.pacingMachineId,
+        lineOutputMachineName: line.lineOutputMachineName,
+      },
+      line.machines.map((m) => m.id),
+    )
+    const outputName =
+      line.lineOutputMachineName ??
+      line.machines.find((m) => m.id === resolved.outputId)?.name ??
+      'the output machine'
+    return { lineName: line.name, outputName, outputId: resolved.outputId }
+  }, [tree, machineId, selectedConnection?.lineId])
 
   useEffect(() => {
     const lineIds = tree.flatMap((p) => p.departments.flatMap((d) => d.lines.map((l) => l.id)))
@@ -1165,7 +1402,21 @@ export function TagMappingEditor({
 
   const browse = wizardMode ? wizardBrowseMeta : adminBrowse.browse
   const supportsBrowsing = browse?.supportsBrowsing ?? false
+  const isMicroLogixBrowse =
+    (browse?.driverType ?? selectedConnection?.driverType) === 'RockwellMicroLogix'
+  const isModbusBrowse =
+    (browse?.driverType ?? selectedConnection?.driverType) === 'ModbusTcp'
+  const isOpcUaBrowse =
+    (browse?.driverType ?? selectedConnection?.driverType) === 'OpcUa'
+  const tagPathPlaceholder = isMicroLogixBrowse
+    ? 'N7:0 or O0:0/0'
+    : isModbusBrowse
+      ? '40001 or hr0'
+      : isOpcUaBrowse
+        ? 'ns=3;s=SlowUInt1'
+        : 'Program:MainProgram.Tag'
   const browseLoading = adminBrowse.loading
+  const browseLoadingProgress = adminBrowse.loadingProgress
   const filter = adminBrowse.filter
   const selected = adminBrowse.selected
   const scrollTop = adminBrowse.scrollTop
@@ -1351,7 +1602,7 @@ export function TagMappingEditor({
                   )}
                 </Table.Td>
                 <Table.Td>
-                  {supportsBrowsing ? (
+                  {supportsBrowsing && !isMicroLogixBrowse ? (
                     s.isMapped ? (
                       <Text size="xs" ff="monospace" style={{ wordBreak: 'break-all' }}>
                         {s.mappedPath}
@@ -1364,7 +1615,7 @@ export function TagMappingEditor({
                   ) : (
                     <TextInput
                       size="xs"
-                      placeholder="Program:MainProgram.Tag"
+                      placeholder={tagPathPlaceholder}
                       value={paths[s.id] ?? ''}
                       onChange={(e) => setPaths((p) => ({ ...p, [s.id]: e.currentTarget.value }))}
                     />
@@ -1394,11 +1645,12 @@ export function TagMappingEditor({
                           <IconLink size={14} />
                         </ActionIcon>
                       </Tooltip>
-                    ) : (
+                    ) : null}
+                    {!supportsBrowsing || isMicroLogixBrowse ? (
                       <Button size="xs" variant="light" onClick={() => save(s.id)} disabled={!(paths[s.id] ?? '').trim()}>
                         Save
                       </Button>
-                    )}
+                    ) : null}
                     {s.isMapped ? (
                       <Tooltip label="Unmap">
                         <ActionIcon variant="subtle" color="red" size="sm" onClick={() => clearMapping(s)} aria-label="Unmap">
@@ -1484,6 +1736,12 @@ export function TagMappingEditor({
     return (
       <>
         <Stack gap="lg">
+          {continuousLineHint ? (
+            <Alert color="violet" variant="light" title="Continuous line">
+              Map Good Count and Reject Count on the line output station ({continuousLineHint.outputName}). Upstream
+              machines still need Run State / downtime tags for station KPIs.
+            </Alert>
+          ) : null}
           {showMachineChecklist && machineStatuses.length > 0 ? (
             <MachineMappingChecklist
               statuses={machineStatuses}
@@ -1566,7 +1824,13 @@ export function TagMappingEditor({
   const browseHeader = (
     <Group justify="space-between" align="center" mb="xs">
       <Text fw={600} size="sm">
-        Controller tags
+        {isMicroLogixBrowse
+          ? 'Data tables'
+          : isModbusBrowse
+            ? 'Registers'
+            : isOpcUaBrowse
+              ? 'Address space'
+              : 'Controller tags'}
       </Text>
       <Group gap="xs">
         {browse ? (
@@ -1593,6 +1857,13 @@ export function TagMappingEditor({
     return (
       <Stack gap="md">
         {selectorsAdmin}
+        {continuousLineHint ? (
+          <Alert color="violet" variant="light" title="Continuous line">
+            Map Good Count and Reject Count on the line output station ({continuousLineHint.outputName}) for{' '}
+            {continuousLineHint.lineName}. Upstream stations can still map Run State and downtime; station-level counts
+            remain optional for local KPIs.
+          </Alert>
+        ) : null}
         {runStateMultiBool && signalFilter !== 'required' ? (
           <Alert color="blue" variant="light">
             Multi BOOL mode — map Running, Idle, and Faulted tags below the main Run State signal.
@@ -1610,6 +1881,7 @@ export function TagMappingEditor({
               <TagBrowseTree
                 supportsBrowsing={supportsBrowsing}
                 loading={browseLoading}
+                loadingProgress={browseLoadingProgress}
                 filter={filter}
                 onFilterChange={setFilter}
                 rows={rows}
@@ -1621,6 +1893,15 @@ export function TagMappingEditor({
                 onScrollTopChange={setScrollTop}
                 viewportHeight={treeHeight}
                 compact={false}
+                searchPlaceholder={
+                  isModbusBrowse
+                    ? 'Search by address (e.g. 40001)'
+                    : isOpcUaBrowse
+                      ? 'Search by name or NodeId'
+                      : isMicroLogixBrowse
+                        ? 'Search by name or path'
+                        : 'Search by name, path, or UDT type'
+                }
               />
             </Card>
           </Box>

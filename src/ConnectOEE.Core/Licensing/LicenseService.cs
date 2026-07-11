@@ -1,7 +1,10 @@
+using Connect.Licensing.Core;
+
 namespace ConnectOEE.Core.Licensing;
 
 public sealed class LicenseService : ILicenseService
 {
+    private static readonly ConnectProduct Product = ConnectProduct.Oee;
     private const int TrialDays = 14;
     private LicenseState _state;
 
@@ -16,6 +19,10 @@ public sealed class LicenseService : ILicenseService
     public LicenseEdition Edition => ComputeEdition();
 
     public bool IsValid => Edition is LicenseEdition.Trial or LicenseEdition.Full or LicenseEdition.Personal;
+
+    public string MachineIdDisplay => MachineFingerprint.Compute();
+
+    public string? LastActivationError { get; private set; }
 
     public string? LicenseHolder => Edition switch
     {
@@ -49,13 +56,15 @@ public sealed class LicenseService : ILicenseService
         LicenseEdition.Full => $"Full — {_state.LicenseHolder}",
         LicenseEdition.Trial => $"Trial — {TrialDaysRemaining} days left",
         LicenseEdition.Personal => "Personal — Development",
+        LicenseEdition.Expired when IsHardwareMismatch =>
+            "Expired — hardware changed; contact vendor for a new key",
         LicenseEdition.Expired => "Expired — activate license",
         _ => "Unknown"
     };
 
     public int MaxPlants => HasFullFeatures ? int.MaxValue : 1;
     public int MaxLines => HasFullFeatures ? int.MaxValue : 2;
-    public bool RockwellDriverEnabled => HasFullFeatures;
+    public bool PlcDriversEnabled => HasFullFeatures;
     public bool PdfReportsEnabled => HasFullFeatures;
     public bool ScheduledReportsEnabled => HasFullFeatures;
     public int MaxKioskDashboards => HasFullFeatures ? int.MaxValue : 1;
@@ -65,16 +74,27 @@ public sealed class LicenseService : ILicenseService
 
     public bool ValidateAndActivate(string? licenseKey)
     {
-        if (!LicenseValidator.TryValidate(licenseKey, out var payload) || payload is null)
+        LastActivationError = null;
+        if (!LicenseValidator.TryValidate(Product, licenseKey, out var payload, out var failure) || payload is null)
+        {
+            LastActivationError = LicenseValidator.GetActivationErrorMessage(failure);
             return false;
+        }
 
         _state.ActivatedKeyHash = LicenseValidator.HashKey(licenseKey!);
         _state.LicenseHolder = payload.Holder;
         _state.ActivatedUtc = DateTime.UtcNow;
         _state.ExpiresUtc = LicenseValidator.ParseExpiresUtc(payload.Expires);
+        _state.MachineIdHash = string.IsNullOrWhiteSpace(payload.MachineId)
+            ? null
+            : MachineFingerprint.Normalize(payload.MachineId);
         LicenseStore.Save(_state);
         return true;
     }
+
+    private bool IsHardwareMismatch =>
+        _state.MachineIdHash is not null &&
+        !string.Equals(_state.MachineIdHash, MachineFingerprint.Compute(), StringComparison.Ordinal);
 
     private LicenseEdition ComputeEdition()
     {
@@ -82,6 +102,8 @@ public sealed class LicenseService : ILicenseService
             return LicenseEdition.Personal;
         if (!string.IsNullOrEmpty(_state.ActivatedKeyHash))
         {
+            if (IsHardwareMismatch)
+                return LicenseEdition.Expired;
             if (_state.ExpiresUtc is { } expires && DateTime.UtcNow.Date > expires.Date)
                 return LicenseEdition.Expired;
             return LicenseEdition.Full;

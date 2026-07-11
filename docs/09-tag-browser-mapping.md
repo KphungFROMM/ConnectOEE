@@ -4,7 +4,10 @@ When the driver supports tag enumeration, provide a full live tag browser. When 
 
 ## Live tag browser features
 
-- Hierarchical browsing of controller tags, program tags, AOIs, and UDTs.
+- Hierarchical browsing of controller tags, program tags, AOIs, and UDTs (**Logix** and **Micro800** via CIP `@tags`).
+- **MicroLogix:** no CIP symbol service — the browser dynamically discovers data files by probing file numbers **0–255** for each type (`N`, `B`, `F`, `T`, `C`, `R`, `MG`, `ST`, `L`) plus I/O (`O`/`I`) and status (`S2`), then builds a data-table tree with live value preview. Bind leaves such as `N7:0`, `B3:0/5`, `T4:0.ACC`, `O0:0/0`.
+- **Modbus TCP:** discovers live registers by scanning the slave (holding/input, coils, discretes). Non-zero values are listed as bindable rows (`40001`, `30001`, `47003:f32`, …) — not a synthetic 0..N map. Adjacent holding words that decode as a plausible IEEE float are coalesced into one Real. Manual entry still accepts `hr0` / `40001` / `c0` / `di0`.
+- **OPC UA:** browses the server address space from Objects (folders + variables). Bind NodeIds such as `ns=3;s=SlowUInt1`. Live value preview uses Attribute Value reads.
 - Expand/collapse tree structure (virtualized for large controllers).
 - Live value preview with timestamp + quality.
 - Search and filter by name or type.
@@ -26,6 +29,7 @@ When the driver supports tag enumeration, provide a full live tag browser. When 
 - Validate type compatibility between tag and logical signal (Bool required for pulse mode).
 - Show current live value while mapping for confidence.
 - Persist as `TagMapping`; ingest mode is stored on `LogicalSignal.CountIngestMode`. Changes are audited.
+- **Continuous lines:** map **Good Count** / **Reject Count** on the **line output** machine (Admin → Hierarchy marks output/pacing). Upstream stations still need **Run State** / downtime tags for station KPIs; station-level counts remain optional for local views. Tag Mapping shows a Continuous guidance banner when the selected line uses that topology.
 
 ## Operator downtime catalog
 

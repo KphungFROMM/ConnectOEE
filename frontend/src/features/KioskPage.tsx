@@ -1,21 +1,59 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { Center, Group, Stack, Text } from '@mantine/core'
+import { Link, useParams } from 'react-router-dom'
+import { ActionIcon, Button, Center, Group, Stack, Text, Tooltip, useComputedColorScheme, useMantineColorScheme } from '@mantine/core'
+import { IconMoon, IconSun } from '@tabler/icons-react'
 import type { HubConnection } from '@microsoft/signalr'
 import { createLiveConnection, HubConnectionState, normalizeLiveUpdates, type MachineSnapshot } from '../lib/liveHub'
 import { getKioskDashboard, establishKioskSession, type Dashboard } from '../lib/dashboards'
 import { useClientPresence } from '../lib/useClientPresence'
 import { DashboardRenderer } from '../components/DashboardRenderer'
 import type { WidgetCtx } from '../components/widgets/common'
+import { useAuth } from '../lib/auth'
+import { Permissions } from '../lib/permissions'
+
+function WallThemeToggle() {
+  const { setColorScheme } = useMantineColorScheme()
+  const computed = useComputedColorScheme('light', { getInitialValueInEffect: true })
+  const isDark = computed === 'dark'
+  return (
+    <Tooltip label={isDark ? 'Switch to light' : 'Switch to dark'}>
+      <ActionIcon
+        variant="subtle"
+        color="gray"
+        size="sm"
+        aria-label="Toggle color scheme"
+        onClick={(e) => {
+          e.stopPropagation()
+          setColorScheme(isDark ? 'light' : 'dark')
+        }}
+      >
+        {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
+      </ActionIcon>
+    </Tooltip>
+  )
+}
 
 export function KioskPage() {
   const { id } = useParams()
+  const { user, hasPermission } = useAuth()
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [error, setError] = useState(false)
   const [byMachine, setByMachine] = useState<Record<string, MachineSnapshot>>({})
   const [hubConnected, setHubConnected] = useState(false)
   const connRef = useRef<HubConnection | null>(null)
   const [fullscreenHint, setFullscreenHint] = useState(true)
+
+  const hasInteractiveWidgets = useMemo(
+    () =>
+      (dashboard?.widgets ?? []).some((w) =>
+        ['operator-downtime-pad', 'fault-ack-button', 'plc-write-controls'].includes(w.type),
+      ),
+    [dashboard],
+  )
+  const canAct =
+    Boolean(user) &&
+    (hasPermission(Permissions.PlcWrite) || hasPermission(Permissions.EnterDowntimeReason))
+  const allowInteractiveWrites = hasInteractiveWidgets && canAct
 
   useClientPresence({
     clientKind: 'Kiosk',
@@ -28,10 +66,21 @@ export function KioskPage() {
 
   useEffect(() => {
     if (!id) return
+    let cancelled = false
     void establishKioskSession(id)
       .then(() => getKioskDashboard(id))
-      .then(setDashboard)
-      .catch(() => setError(true))
+      .then((d) => {
+        if (!cancelled) setDashboard(d)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(true)
+          console.error('Kiosk load failed', err)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
   useEffect(() => {
@@ -94,8 +143,9 @@ export function KioskPage() {
       hubConnected,
       density: 'kiosk',
       wallBoard: true,
+      allowInteractiveWrites,
     }
-  }, [snapshots, hubConnected, dashboard])
+  }, [snapshots, hubConnected, dashboard, allowInteractiveWrites])
 
   if (error || (dashboard && !dashboard.lineId)) {
     return (
@@ -116,7 +166,13 @@ export function KioskPage() {
 
   return (
     <div
-      style={{ height: '100vh', background: 'var(--mantine-color-body)', padding: 12, display: 'flex', flexDirection: 'column' }}
+      style={{
+        height: '100vh',
+        background: 'var(--mantine-color-body)',
+        padding: 12,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
       onClick={() => {
         if (!fullscreenHint) return
         setFullscreenHint(false)
@@ -129,6 +185,16 @@ export function KioskPage() {
             {dashboard.name}
           </Text>
           <Group gap="xs">
+            {hasInteractiveWidgets && !canAct ? (
+              <Button component={Link} to={`/login?returnUrl=/kiosk/${id}`} size="compact-xs" variant="light">
+                Sign in to act
+              </Button>
+            ) : null}
+            {hasInteractiveWidgets && canAct ? (
+              <Text c="teal.6" size="xs" fw={600}>
+                Operator actions enabled
+              </Text>
+            ) : null}
             {fullscreenHint ? (
               <Text c="dimmed" size="xs">
                 Tap anywhere for full screen
@@ -139,6 +205,7 @@ export function KioskPage() {
                 reconnecting…
               </Text>
             ) : null}
+            <WallThemeToggle />
           </Group>
         </Group>
         <DashboardRenderer

@@ -10,10 +10,12 @@ import {
   TextInput,
 } from '@mantine/core'
 import { TagPickerModal } from '../../components/tags/TagPickerModal'
-import { SNAPSHOT_FIELDS, widgetMetaByType } from '../../components/widgets/registry'
+import { SNAPSHOT_FIELDS, GAUGE_KPI_FIELDS, widgetMetaByType } from '../../components/widgets/registry'
 import { resolveScopedField } from '../../components/widgets/resolveScopedSnapshot'
 import type { WidgetCtx } from '../../components/widgets/common'
-import { FRAME_VARIANT_WIDGET_TYPES } from '../../components/widgets/common'
+import { FRAME_VARIANT_WIDGET_TYPES, PRESENTATION_WIDGET_TYPES, STATUS_STYLE_WIDGET_TYPES, supportsFrameVariant, KPI_COLOR_MODE_OPTIONS } from '../../components/widgets/common'
+import { KPI_PRESENTATION_OPTIONS } from '../../components/widgets/design/PresentationKpi'
+import { STATUS_STYLE_OPTIONS } from '../../components/widgets/design/statusStyle'
 import { GRID_COLS } from './gridConstants'
 import { listConnections, type PlcConnection } from '../../lib/admin'
 import type { DashboardWidget, WidgetBinding } from '../../lib/dashboards'
@@ -151,9 +153,11 @@ export function BindingEditor({ widget, lineId, onChange, ctx }: BindingEditorPr
           {kind === 'snapshot' && showKpiBinding ? (
             <>
               <Select
-                label="Snapshot field"
+                label={widget.type === 'oee-hero' || widget.type === 'oee-gauge' ? 'KPI' : 'Snapshot field'}
                 size="xs"
-                data={SNAPSHOT_FIELDS}
+                data={
+                  widget.type === 'oee-hero' || widget.type === 'oee-gauge' ? GAUGE_KPI_FIELDS : SNAPSHOT_FIELDS
+                }
                 value={field ?? null}
                 onChange={(v) => setBinding({ field: v ?? undefined })}
                 searchable
@@ -295,22 +299,76 @@ export function LayoutFields({
   widget: DashboardWidget
   onChange: (patch: Partial<DashboardWidget>) => void
 }) {
-  const showVariant = FRAME_VARIANT_WIDGET_TYPES.has(widget.type)
+  const showVariant = supportsFrameVariant(widget.type) || FRAME_VARIANT_WIDGET_TYPES.has(widget.type)
+  const showPresentation = PRESENTATION_WIDGET_TYPES.has(widget.type)
+  const showStatusStyle = STATUS_STYLE_WIDGET_TYPES.has(widget.type)
   return (
     <Stack gap="xs">
       {showVariant ? (
-        <SegmentedControl
-          size="xs"
-          fullWidth
-          value={(widget.options.frameVariant as string) ?? 'default'}
-          onChange={(v) => onChange({ options: { ...widget.options, frameVariant: v } })}
-          data={[
-            { value: 'default', label: 'Default' },
-            { value: 'compact', label: 'Compact' },
-            { value: 'hero', label: 'Hero' },
-            { value: 'kiosk', label: 'Kiosk' },
-          ]}
-        />
+        <>
+          <Text size="xs" c="dimmed" fw={600}>
+            Frame
+          </Text>
+          <SegmentedControl
+            size="xs"
+            fullWidth
+            value={(widget.options.frameVariant as string) ?? 'default'}
+            onChange={(v) => onChange({ options: { ...widget.options, frameVariant: v } })}
+            data={[
+              { value: 'default', label: 'Default' },
+              { value: 'compact', label: 'Compact' },
+              { value: 'hero', label: 'Hero' },
+              { value: 'kiosk', label: 'Kiosk' },
+            ]}
+          />
+        </>
+      ) : null}
+      {showStatusStyle ? (
+        <>
+          <Text size="xs" c="dimmed" fw={600}>
+            Status style
+          </Text>
+          <Select
+            size="xs"
+            value={(widget.options.statusStyle as string) ?? 'beacon'}
+            onChange={(v) => onChange({ options: { ...widget.options, statusStyle: v ?? 'beacon' } })}
+            data={STATUS_STYLE_OPTIONS.map((s) => ({
+              value: s.value,
+              label: s.label[0].toUpperCase() + s.label.slice(1),
+            }))}
+          />
+        </>
+      ) : null}
+      {showPresentation ? (
+        <>
+          <Text size="xs" c="dimmed" fw={600}>
+            Presentation
+          </Text>
+          <Select
+            size="xs"
+            value={(widget.options.presentation as string) ?? 'number'}
+            onChange={(v) => onChange({ options: { ...widget.options, presentation: v ?? 'number' } })}
+            data={KPI_PRESENTATION_OPTIONS.map((p) => ({
+              value: p.value,
+              label:
+                p.value === 'ringSpark'
+                  ? 'Ring + spark'
+                  : p.value === 'barSpark'
+                    ? 'Bar + spark'
+                    : p.label[0].toUpperCase() + p.label.slice(1),
+            }))}
+          />
+          <Text size="xs" c="dimmed" fw={600}>
+            Color
+          </Text>
+          <SegmentedControl
+            size="xs"
+            fullWidth
+            value={(widget.options.colorMode as string) ?? 'identity'}
+            onChange={(v) => onChange({ options: { ...widget.options, colorMode: v } })}
+            data={KPI_COLOR_MODE_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
+          />
+        </>
       ) : null}
       <Group gap={6}>
       <NumberInput

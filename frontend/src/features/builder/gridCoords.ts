@@ -61,3 +61,33 @@ export function builderGridBackground(width: number) {
     `repeating-linear-gradient(to bottom, ${line} 0 1px, transparent 1px ${rowStride}px)`
   )
 }
+
+/**
+ * Resolve palette drop cell from pointer + optional React drag-type state.
+ * Prefer `dragTypeState` during dragover (getData is often empty until drop).
+ */
+export function resolvePaletteDropCell(args: {
+  clientX: number
+  clientY: number
+  containerRect: DOMRect
+  metrics: GridMetrics
+  itemW?: number
+  itemH?: number
+  scrollLeft?: number
+  scrollTop?: number
+  dragTypeState?: string | null
+  mimeType?: string | null
+}): { type: string | null; x: number; y: number } {
+  const type = args.dragTypeState || args.mimeType || null
+  const { x, y } = pointerToGridCell(
+    args.clientX,
+    args.clientY,
+    args.containerRect,
+    args.metrics,
+    args.itemW ?? 1,
+    args.itemH ?? 1,
+    args.scrollLeft ?? 0,
+    args.scrollTop ?? 0,
+  )
+  return { type, x, y }
+}

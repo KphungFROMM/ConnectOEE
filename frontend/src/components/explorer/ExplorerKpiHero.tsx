@@ -192,6 +192,7 @@ export function ExplorerKpiHero({
       reliability={reliability}
       hideTeep={isMachine}
       footer={isMachine && live ? <MachineContextStrip kpi={kpi} live={live} /> : undefined}
+      connectionState={kpi.connectionState}
     />
   )
 }

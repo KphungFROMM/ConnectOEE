@@ -9,9 +9,11 @@ interface Props {
   loading?: boolean
   /** Wall-mounted operator displays — show OEE + state + good count only */
   compact?: boolean
+  /** Continuous line output machine ids (lowercase optional). */
+  outputMachineIds?: Set<string>
 }
 
-export function StationGrid({ groups, unassignedByMachine, onSelectMachine, loading, compact = false }: Props) {
+export function StationGrid({ groups, unassignedByMachine, onSelectMachine, loading, compact = false, outputMachineIds }: Props) {
   if (!loading && groups.length === 0) {
     return (
       <Text c="dimmed" ta="center" py="xl">
@@ -36,6 +38,7 @@ export function StationGrid({ groups, unassignedByMachine, onSelectMachine, load
             {g.machines.map((m) => {
               const pending = unassignedByMachine.get(m.machineId.toLowerCase()) ?? 0
               const offline = m.snapshot.connectionState !== 'Connected'
+              const isOutput = outputMachineIds?.has(m.machineId) || outputMachineIds?.has(m.machineId.toLowerCase())
               return (
                 <div
                   key={m.machineId}
@@ -49,6 +52,16 @@ export function StationGrid({ groups, unassignedByMachine, onSelectMachine, load
                       style={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
                     >
                       {pending}
+                    </Badge>
+                  ) : null}
+                  {isOutput ? (
+                    <Badge
+                      color="grape"
+                      size="xs"
+                      variant="light"
+                      style={{ position: 'absolute', top: 8, left: offline ? 72 : 8, zIndex: 1 }}
+                    >
+                      Output
                     </Badge>
                   ) : null}
                   {offline ? (

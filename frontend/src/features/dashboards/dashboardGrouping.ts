@@ -12,9 +12,12 @@ export type DashboardCategory =
   | 'Kiosk'
   | 'General'
 
+/** @deprecated Prefer DashboardScopeId + left nav */
 export type DashboardTab = 'all' | 'plant' | 'kiosks' | 'analysis'
 
-export type DashboardGroupKind = 'pinned' | 'recent' | 'plant' | 'line' | 'kiosk' | 'analysis' | 'other'
+export type DashboardChipFilter = 'pinned' | 'kiosk' | 'analysis'
+
+export type DashboardScopeId = string
 
 export interface ParsedDashboardName {
   prefix: string | null
@@ -22,31 +25,28 @@ export interface ParsedDashboardName {
   baseName: string
 }
 
-export interface DashboardGroup {
-  id: string
-  kind: DashboardGroupKind
-  title: string
-  subtitle?: string
-  dashboards: DashboardSummary[]
+export interface DashboardScopeNode {
+  id: DashboardScopeId
+  label: string
+  count: number
+  kind: 'all' | 'kiosks' | 'plant' | 'line' | 'other'
+  children?: DashboardScopeNode[]
 }
 
-const PLANT_NAMES = new Set([
-  'Plant Overview',
-  'Multi-Line Overview',
-])
+const PLANT_NAMES = new Set(['Plant Overview'])
 
-const EXECUTIVE_NAMES = new Set([
-  'Executive Summary',
-  'TEEP Utilization',
-])
+const EXECUTIVE_NAMES = new Set<string>([])
 
-const ANALYSIS_NAMES = new Set([
-  'Maintenance / Fault Focus',
-])
+const ANALYSIS_NAMES = new Set(['Quality Pulse', 'Analytics Starter'])
 
 const KIOSK_NAMES = new Set([
+  'Operator Floor',
+  'Line Andon',
+  'Maintenance Wall',
   'Operator Station',
   'Andon / Big Screen',
+  'Operator Kiosk',
+  'Line Andon Wall',
   'Maintenance Wallboard',
 ])
 
@@ -58,8 +58,9 @@ const SUFFIX_CATEGORY: Record<string, DashboardCategory> = {
   Production: 'Analysis',
   Quality: 'Analysis',
   Setup: 'Analysis',
-  Supervisor: 'Line',
+  Supervisor: 'Shift',
   'Operator Kiosk': 'Kiosk',
+  'Operator Floor': 'Kiosk',
   Andon: 'Kiosk',
   'Maintenance Board': 'Kiosk',
 }
@@ -75,14 +76,28 @@ export const CATEGORY_COLORS: Record<DashboardCategory, string> = {
   General: 'gray',
 }
 
+export const SCOPE_ALL = 'all'
+export const SCOPE_KIOSKS = 'kiosks'
+export const SCOPE_OTHER = 'other'
+
 export function parseDashboardName(name: string): ParsedDashboardName {
-  const idx = name.lastIndexOf(DASHBOARD_NAME_SEP)
-  if (idx < 0) return { prefix: null, suffix: null, baseName: name }
-  return {
-    prefix: name.slice(0, idx).trim() || null,
-    suffix: name.slice(idx + DASHBOARD_NAME_SEP.length).trim() || null,
-    baseName: name,
+  const sepIdx = name.lastIndexOf(DASHBOARD_NAME_SEP)
+  if (sepIdx >= 0) {
+    return {
+      prefix: name.slice(0, sepIdx).trim() || null,
+      suffix: name.slice(sepIdx + DASHBOARD_NAME_SEP.length).trim() || null,
+      baseName: name,
+    }
   }
+  const asciiIdx = name.lastIndexOf(' - ')
+  if (asciiIdx >= 0) {
+    return {
+      prefix: name.slice(0, asciiIdx).trim() || null,
+      suffix: name.slice(asciiIdx + 3).trim() || null,
+      baseName: name,
+    }
+  }
+  return { prefix: null, suffix: null, baseName: name }
 }
 
 export function inferCategoryFromName(name: string, scope?: string): DashboardCategory {
@@ -103,6 +118,10 @@ export function resolveCategory(d: DashboardSummary): DashboardCategory {
   return inferCategoryFromName(d.name, d.scope)
 }
 
+export function isKioskDashboard(d: DashboardSummary): boolean {
+  return d.scope === 'PublicKiosk' || resolveCategory(d) === 'Kiosk'
+}
+
 export function scopeLabel(d: DashboardSummary): string {
   if (d.scope === 'PublicKiosk') return 'Kiosk'
   if (d.scope === 'RoleRestricted') return 'Published'
@@ -120,17 +139,26 @@ export function bindingContextLabel(d: DashboardSummary): string | null {
   return null
 }
 
+/** Primary card title: prefer role/suffix so line context is not duplicated. */
 export function displayTitle(d: DashboardSummary): string {
   const { suffix, prefix } = parseDashboardName(d.name)
   if (suffix && prefix) return suffix
   return d.name
 }
 
+export function displaySubtitle(d: DashboardSummary): string | null {
+  const binding = bindingContextLabel(d)
+  if (binding) return binding
+  const { suffix, prefix } = parseDashboardName(d.name)
+  if (suffix && prefix) return prefix
+  return null
+}
+
 export function matchesTab(d: DashboardSummary, tab: DashboardTab): boolean {
   if (tab === 'all') return true
   const category = resolveCategory(d)
   if (tab === 'plant') return category === 'Plant' || category === 'Executive'
-  if (tab === 'kiosks') return category === 'Kiosk' || d.scope === 'PublicKiosk'
+  if (tab === 'kiosks') return isKioskDashboard(d)
   if (tab === 'analysis') return category === 'Analysis'
   return true
 }
@@ -153,81 +181,192 @@ export function matchesSearch(d: DashboardSummary, query: string): boolean {
   return haystack.includes(q)
 }
 
-function groupKeyForDashboard(d: DashboardSummary): { kind: DashboardGroupKind; id: string; title: string; subtitle?: string } {
-  const category = resolveCategory(d)
-
-  if (category === 'Kiosk' || d.scope === 'PublicKiosk') {
-    return { kind: 'kiosk', id: 'kiosk', title: 'Kiosk & wallboards' }
-  }
-  if (category === 'Analysis') {
-    return { kind: 'analysis', id: 'analysis', title: 'Analysis dashboards' }
-  }
-  if (category === 'Plant' || category === 'Executive') {
-    const title = d.plantName ?? 'Plant dashboards'
-    return { kind: 'plant', id: `plant:${d.plantId ?? title}`, title, subtitle: category }
-  }
-  if (d.lineName) {
-    const subtitle = d.plantName ?? undefined
-    return { kind: 'line', id: `line:${d.lineId ?? d.lineName}`, title: d.lineName, subtitle }
-  }
-  const { prefix } = parseDashboardName(d.name)
-  if (prefix) {
-    return { kind: 'line', id: `line-prefix:${prefix}`, title: prefix }
-  }
-  return { kind: 'other', id: 'other', title: 'Other dashboards' }
+function plantScopeId(d: DashboardSummary): string | null {
+  if (d.plantId) return `plant:${d.plantId}`
+  if (d.plantName) return `plant:name:${d.plantName}`
+  return null
 }
 
-const GROUP_ORDER: DashboardGroupKind[] = ['pinned', 'recent', 'plant', 'line', 'kiosk', 'analysis', 'other']
+function lineScopeId(d: DashboardSummary): string | null {
+  if (d.lineId) return `line:${d.lineId}`
+  if (d.lineName) return `line:name:${d.lineName}`
+  const { prefix } = parseDashboardName(d.name)
+  if (prefix && !d.plantId && !PLANT_NAMES.has(d.name) && !EXECUTIVE_NAMES.has(d.name)) {
+    return `line:name:${prefix}`
+  }
+  return null
+}
 
-export function groupDashboards(
+function isPlantLevelBoard(d: DashboardSummary): boolean {
+  const category = resolveCategory(d)
+  if (category === 'Plant' || category === 'Executive') return true
+  if (d.plantId && !d.lineId && !d.lineName) return true
+  return PLANT_NAMES.has(d.name) || EXECUTIVE_NAMES.has(d.name)
+}
+
+/** Whether a board belongs in the selected scope (boards stay in every matching home). */
+export function boardsInScope(dashboards: DashboardSummary[], scopeId: DashboardScopeId): DashboardSummary[] {
+  if (!scopeId || scopeId === SCOPE_ALL) return [...dashboards]
+
+  if (scopeId === SCOPE_KIOSKS) {
+    return dashboards.filter(isKioskDashboard)
+  }
+
+  if (scopeId === SCOPE_OTHER) {
+    return dashboards.filter((d) => {
+      if (isKioskDashboard(d)) return false
+      if (plantScopeId(d) || lineScopeId(d) || isPlantLevelBoard(d)) return false
+      return true
+    })
+  }
+
+  if (scopeId.startsWith('plant:')) {
+    // Plant scope includes every board under that plant (plant-level + lines).
+    return dashboards.filter((d) => plantScopeId(d) === scopeId)
+  }
+
+  if (scopeId.startsWith('line:')) {
+    return dashboards.filter((d) => lineScopeId(d) === scopeId)
+  }
+
+  return dashboards
+}
+
+export function filterDashboardsByScope(
   dashboards: DashboardSummary[],
-  options: { pinnedIds: string[]; recentIds: string[] },
-): DashboardGroup[] {
+  options: {
+    scopeId: DashboardScopeId
+    search: string
+    chips: DashboardChipFilter[]
+    pinnedIds: string[]
+  },
+): DashboardSummary[] {
   const pinnedSet = new Set(options.pinnedIds)
-  const recentSet = new Set(options.recentIds.filter((id) => !pinnedSet.has(id)))
+  let list = boardsInScope(dashboards, options.scopeId).filter((d) => matchesSearch(d, options.search))
 
-  const pinned = dashboards.filter((d) => pinnedSet.has(d.id))
-  const recent = dashboards.filter((d) => recentSet.has(d.id))
-  const rest = dashboards.filter((d) => !pinnedSet.has(d.id) && !recentSet.has(d.id))
+  for (const chip of options.chips) {
+    if (chip === 'pinned') list = list.filter((d) => pinnedSet.has(d.id))
+    if (chip === 'kiosk') list = list.filter(isKioskDashboard)
+    if (chip === 'analysis') list = list.filter((d) => resolveCategory(d) === 'Analysis')
+  }
 
-  const bucketMap = new Map<string, DashboardGroup>()
+  return list.sort((a, b) => a.name.localeCompare(b.name))
+}
 
-  for (const d of rest) {
-    const meta = groupKeyForDashboard(d)
-    const bucketId = `${meta.kind}:${meta.id}`
-    const existing = bucketMap.get(bucketId)
-    if (existing) {
-      existing.dashboards.push(d)
-    } else {
-      bucketMap.set(bucketId, {
-        id: bucketId,
-        kind: meta.kind,
-        title: meta.title,
-        subtitle: meta.subtitle,
-        dashboards: [d],
-      })
+export function scopeTreeFromDashboards(dashboards: DashboardSummary[]): DashboardScopeNode[] {
+  const plants = new Map<string, { label: string; lines: Map<string, { label: string; ids: string[] }>; plantBoardIds: string[] }>()
+  const orphanLines = new Map<string, { label: string; ids: string[] }>()
+
+  for (const d of dashboards) {
+    const pid = plantScopeId(d)
+    const lid = lineScopeId(d)
+
+    if (lid) {
+      if (!pid) {
+        let line = orphanLines.get(lid)
+        if (!line) {
+          line = { label: d.lineName ?? parseDashboardName(d.name).prefix ?? 'Line', ids: [] }
+          orphanLines.set(lid, line)
+        }
+        line.ids.push(d.id)
+        continue
+      }
+      let plant = plants.get(pid)
+      if (!plant) {
+        plant = { label: d.plantName ?? 'Plant', lines: new Map(), plantBoardIds: [] }
+        plants.set(pid, plant)
+      }
+      let line = plant.lines.get(lid)
+      if (!line) {
+        line = { label: d.lineName ?? parseDashboardName(d.name).prefix ?? 'Line', ids: [] }
+        plant.lines.set(lid, line)
+      }
+      line.ids.push(d.id)
+      continue
+    }
+
+    if (pid || isPlantLevelBoard(d)) {
+      const plantKey = pid ?? `plant:name:${d.name}`
+      const plantLabel = d.plantName ?? (isPlantLevelBoard(d) ? d.name : 'Plant')
+      let plant = plants.get(plantKey)
+      if (!plant) {
+        plant = { label: plantLabel, lines: new Map(), plantBoardIds: [] }
+        plants.set(plantKey, plant)
+      }
+      plant.plantBoardIds.push(d.id)
     }
   }
 
-  const groups: DashboardGroup[] = []
-  if (pinned.length > 0) {
-    groups.push({ id: 'pinned', kind: 'pinned', title: 'Pinned', dashboards: pinned })
-  }
-  if (recent.length > 0) {
-    groups.push({ id: 'recent', kind: 'recent', title: 'Recently opened', dashboards: recent })
+  const kioskCount = dashboards.filter(isKioskDashboard).length
+  const otherCount = boardsInScope(dashboards, SCOPE_OTHER).length
+
+  const nodes: DashboardScopeNode[] = [
+    { id: SCOPE_ALL, label: 'All boards', count: dashboards.length, kind: 'all' },
+    { id: SCOPE_KIOSKS, label: 'Kiosks', count: kioskCount, kind: 'kiosks' },
+  ]
+
+  const plantNodes = [...plants.entries()]
+    .map(([id, plant]) => {
+      const lineChildren: DashboardScopeNode[] = [...plant.lines.entries()]
+        .map(([lineId, line]) => ({
+          id: lineId,
+          label: line.label,
+          count: line.ids.length,
+          kind: 'line' as const,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+
+      const total = plant.plantBoardIds.length + lineChildren.reduce((sum, c) => sum + c.count, 0)
+
+      return {
+        id,
+        label: plant.label,
+        count: total,
+        kind: 'plant' as const,
+        children: lineChildren.length > 0 ? lineChildren : undefined,
+      }
+    })
+    .sort((a, b) => a.label.localeCompare(b.label))
+
+  nodes.push(...plantNodes)
+
+  const orphanLineNodes = [...orphanLines.entries()]
+    .map(([id, line]) => ({
+      id,
+      label: line.label,
+      count: line.ids.length,
+      kind: 'line' as const,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+
+  nodes.push(...orphanLineNodes)
+
+  if (otherCount > 0) {
+    nodes.push({ id: SCOPE_OTHER, label: 'Other', count: otherCount, kind: 'other' })
   }
 
-  const sortedBuckets = [...bucketMap.values()].sort((a, b) => {
-    const ia = GROUP_ORDER.indexOf(a.kind)
-    const ib = GROUP_ORDER.indexOf(b.kind)
-    if (ia !== ib) return ia - ib
-    return a.title.localeCompare(b.title)
-  })
+  return nodes
+}
 
-  for (const bucket of sortedBuckets) {
-    bucket.dashboards.sort((a, b) => a.name.localeCompare(b.name))
-    groups.push(bucket)
+export function scopeTitle(scopeId: DashboardScopeId, tree: DashboardScopeNode[]): string {
+  if (scopeId === SCOPE_ALL) return 'All boards'
+  if (scopeId === SCOPE_KIOSKS) return 'Kiosks'
+  if (scopeId === SCOPE_OTHER) return 'Other'
+  for (const node of tree) {
+    if (node.id === scopeId) return node.label
+    for (const child of node.children ?? []) {
+      if (child.id === scopeId) {
+        return node.kind === 'plant' ? `${node.label} › ${child.label}` : child.label
+      }
+    }
   }
+  return 'Dashboards'
+}
 
-  return groups
+export function isRecent(id: string, recentIds: string[]): boolean {
+  return recentIds.includes(id)
+}
+
+export function isPinned(id: string, pinnedIds: string[]): boolean {
+  return pinnedIds.includes(id)
 }

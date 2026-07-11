@@ -1,10 +1,33 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Center, Group, Stack, Text } from '@mantine/core'
+import { ActionIcon, Center, Group, Stack, Text, Tooltip, useComputedColorScheme, useMantineColorScheme } from '@mantine/core'
+import { IconMoon, IconSun } from '@tabler/icons-react'
 import { getDashboard, getKioskDashboard, establishKioskSession, type Dashboard } from '../lib/dashboards'
 import { useAuth } from '../lib/auth'
 import { DashboardRenderer } from '../components/DashboardRenderer'
 import { profileForDashboard } from './builder/displayProfiles'
+
+function WallThemeToggle() {
+  const { setColorScheme } = useMantineColorScheme()
+  const computed = useComputedColorScheme('light', { getInitialValueInEffect: true })
+  const isDark = computed === 'dark'
+  return (
+    <Tooltip label={isDark ? 'Switch to light' : 'Switch to dark'}>
+      <ActionIcon
+        variant="subtle"
+        color="gray"
+        size="sm"
+        aria-label="Toggle color scheme"
+        onClick={(e) => {
+          e.stopPropagation()
+          setColorScheme(isDark ? 'light' : 'dark')
+        }}
+      >
+        {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
+      </ActionIcon>
+    </Tooltip>
+  )
+}
 
 export function PresentationPage() {
   const { id } = useParams()
@@ -110,6 +133,7 @@ export function PresentationPage() {
                   Tap for full screen
                 </Text>
               ) : null}
+              <WallThemeToggle />
             </Group>
           </Group>
         ) : null}

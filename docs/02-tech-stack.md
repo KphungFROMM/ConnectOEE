@@ -15,7 +15,7 @@ Best fit for on-prem Windows hosting:
 
 Largest ecosystem for the hard UI pieces this spec needs:
 
-- Drag-and-drop dashboard builder (`dnd-kit` + `react-grid-layout`).
+- Drag-and-drop dashboard builder (native HTML5 palette drop + `react-grid-layout` for move/resize).
 - Charts and gauges (ECharts / Recharts).
 - Hierarchical, virtualized tag tree for the tag browser.
 - Polished component system (default: Mantine) for zero-learning-curve UX, dark/light mode, touch-friendly industrial layout.
@@ -37,11 +37,14 @@ Largest ecosystem for the hard UI pieces this spec needs:
 - JWT for app users; cookie option for kiosk mode.
 - Custom RBAC permission layer on top (see 05).
 
-## PLC: libplctag
+## PLC: libplctag + FluentModbus + OPC UA
 
-- libplctag (.NET wrapper) for ControlLogix/CompactLogix.
-- Behind a driver abstraction so OPC UA / Modbus TCP / Siemens S7 can be added later.
+- libplctag (.NET wrapper) for ControlLogix/CompactLogix/MicroLogix/Micro800.
+- FluentModbus for Modbus TCP slaves (holding/input registers, coils, discretes).
+- OPC Foundation .NET Standard client for OPC UA (`opc.tcp://…`).
+- Behind a driver abstraction so Siemens S7 can be added later.
 - A Mock/Simulator driver ships first for development and demos.
+- Dev Docker Compose includes Microsoft **opc-plc** (`opc.tcp://localhost:50000`) for OPC UA testing.
 
 ## Supporting libraries (planned defaults)
 

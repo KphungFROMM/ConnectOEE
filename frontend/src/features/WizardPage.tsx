@@ -250,14 +250,13 @@ function renderStep(active: number, ctx: StepContext) {
       return <ShiftSetupStep shiftsAssigned={s?.shiftsAssigned ?? false} onChange={ctx.refresh} />
     case 9:
       return (
-        <StepFrame title="Generate dashboards" hint="Create dashboards from system templates (10 per line + plant dashboards; Multi-Line Overview when 2+ lines or multi-machine lines).">
+        <StepFrame title="Generate dashboards" hint="Create dashboards from the v8 curated system templates (per line + plant).">
           <Card withBorder radius="md" padding="lg">
             <Stack>
               <Text size="sm">
-                Creates Line Overview, Shift Summary, Machine Detail, Downtime Analysis, Production Analysis,
-                Operator kiosk, and Andon kiosk per line, plus Plant Overview, Executive Summary, and Maintenance
-                dashboards. When you have two or more lines, or any line with multiple machines, a{' '}
-                <strong>Multi-Line Overview</strong> dashboard is also created so you can see every machine at once.
+                Creates <strong>Shift Supervisor</strong>, <strong>Production Board</strong>, <strong>Quality Pulse</strong>,{' '}
+                <strong>Operator Floor</strong> (kiosk), and <strong>Line Andon</strong> (kiosk) per line, plus{' '}
+                <strong>Plant Overview</strong>, <strong>Analytics Starter</strong>, and <strong>Maintenance Wall</strong> (kiosk) at plant scope.
               </Text>
               <Group>
                 <Button leftSection={<IconRocket size={16} />} loading={ctx.generating} onClick={ctx.runGenerate}>

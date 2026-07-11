@@ -71,3 +71,20 @@ export const LINE_PRODUCTION_MODE_OPTIONS: { value: LineProductionMode; label: s
     description: 'Performance uses the line fallback rate only (no PartId / recipes).',
   },
 ]
+
+export const LINE_TOPOLOGY_OPTIONS: {
+  value: import('./lineTopology').LineTopologyMode
+  label: string
+  description: string
+}[] = [
+  {
+    value: 'Independent',
+    label: 'Independent machines',
+    description: 'Stations are parallel peers — line counts sum all machines; A/P average across stations.',
+  },
+  {
+    value: 'Continuous',
+    label: 'Continuous line',
+    description: 'Serial stations — line good/reject from the output machine; performance uses the pacing station.',
+  },
+]

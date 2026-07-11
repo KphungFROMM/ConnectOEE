@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="Analytics Starter">
+  <rect width="640" height="360" fill="#F4F5F7"/>
+  <rect x="16" y="16" width="608" height="70" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="36" y="36" width="120" height="30" rx="6" fill="#E8F0FE"/>
+  <rect x="172" y="36" width="120" height="30" rx="6" fill="#D1FAE5"/>
+  <rect x="308" y="36" width="120" height="30" rx="6" fill="#E0E7FF"/>
+  <rect x="444" y="36" width="120" height="30" rx="6" fill="#F3E8FF"/>
+  <rect x="16" y="100" width="360" height="140" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <polyline points="40,210 90,180 140,190 190,150 240,165 290,130 340,145" fill="none" stroke="#2E9E5B" stroke-width="3"/>
+  <rect x="388" y="100" width="236" height="140" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <circle cx="506" cy="170" r="45" fill="#E8F0FE" stroke="#2563EB" stroke-width="12"/>
+  <rect x="16" y="254" width="300" height="90" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <polyline points="40,320 90,300 140,310 190,280 240,295 280,270" fill="none" stroke="#2563EB" stroke-width="3"/>
+  <rect x="328" y="254" width="296" height="90" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="348" y="280" width="180" height="12" rx="3" fill="#FEE2E2"/>
+  <rect x="348" y="304" width="140" height="12" rx="3" fill="#FEF3C7"/>
+</svg>

@@ -22,6 +22,73 @@ namespace ConnectOEE.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("ConnectOEE.Core.Entities.AppearanceSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AvailabilityHex")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FaultHex")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("HeaderLogoUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("HeaderTitle")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("IdleHex")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("OeeHex")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("PerformanceHex")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("QualityHex")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("RunningHex")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<DateTimeOffset?>("UpdatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WarningHex")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppearanceSettings");
+                });
+
             modelBuilder.Entity("ConnectOEE.Core.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -641,8 +708,14 @@ namespace ConnectOEE.Infrastructure.Migrations
                     b.Property<Guid>("LineId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("LineOutputMachineId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("MicroStopThresholdSec")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("PacingMachineId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("ProductionMode")
                         .HasColumnType("integer");
@@ -661,6 +734,9 @@ namespace ConnectOEE.Infrastructure.Migrations
 
                     b.Property<double>("TargetQualityPct")
                         .HasColumnType("double precision");
+
+                    b.Property<int>("Topology")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("UpdatedUtc")
                         .HasColumnType("timestamp with time zone");
@@ -1807,6 +1883,13 @@ namespace ConnectOEE.Infrastructure.Migrations
                     b.Property<string>("OptionsJson")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TabKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Title")
                         .HasMaxLength(200)

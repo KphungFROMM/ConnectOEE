@@ -30,8 +30,18 @@ export function ChartShell({
 
 export function SummaryChip({ label, value }: { label: string; value: string }) {
   return (
-    <Stack gap={0} style={{ minWidth: 64 }}>
-      <Text size="10px" c="dimmed" fw={700} tt="uppercase">
+    <Stack
+      gap={0}
+      px={8}
+      py={4}
+      style={{
+        minWidth: 64,
+        borderRadius: 8,
+        background: 'color-mix(in srgb, var(--mantine-color-default-hover) 80%, transparent)',
+        border: '1px solid var(--mantine-color-default-border)',
+      }}
+    >
+      <Text size="10px" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: '0.03em' }}>
         {label}
       </Text>
       <Text size="sm" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>

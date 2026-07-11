@@ -78,6 +78,9 @@ public class ConnectOeeDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<ReportRun> ReportRuns => Set<ReportRun>();
     public DbSet<SmtpSetting> SmtpSettings => Set<SmtpSetting>();
 
+    // ----- Site appearance -----
+    public DbSet<AppearanceSetting> AppearanceSettings => Set<AppearanceSetting>();
+
     // ----- Audit -----
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 

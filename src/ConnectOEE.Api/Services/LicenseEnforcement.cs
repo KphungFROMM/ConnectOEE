@@ -90,17 +90,25 @@ public static class LicenseEnforcement
         return null;
     }
 
-    public static ActionResult? CheckRockwellDriver(ILicenseService license, string? driverType)
+    /// <summary>
+    /// Trial allows Mock only. Full/Personal unlocks the industrial driver suite
+    /// (Rockwell, Modbus TCP, OPC UA, and future vendors).
+    /// </summary>
+    public static ActionResult? CheckPlcDriver(ILicenseService license, string? driverType)
     {
-        if (!Enum.TryParse<DriverType>(driverType, out var dt) || dt != DriverType.RockwellEthernetIp)
+        if (!Enum.TryParse<DriverType>(driverType, out var dt) || dt == DriverType.Mock)
             return null;
 
         return RequireFeature(
             license,
-            license.RockwellDriverEnabled,
+            license.PlcDriversEnabled,
             "license_limit",
-            "Rockwell EtherNet/IP connections require a full license. Trial supports Mock driver only.");
+            "Industrial PLC drivers require a full license. Trial supports the Mock / Simulator driver only.");
     }
+
+    /// <summary>Legacy alias for <see cref="CheckPlcDriver"/>.</summary>
+    public static ActionResult? CheckRockwellDriver(ILicenseService license, string? driverType) =>
+        CheckPlcDriver(license, driverType);
 
     public static ActionResult? CheckPdfReports(ILicenseService license, ReportFormat format)
     {

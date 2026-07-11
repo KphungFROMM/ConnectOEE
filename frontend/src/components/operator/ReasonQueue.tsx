@@ -33,6 +33,10 @@ function formatEventTime(iso: string, relative: boolean): string {
 interface Props {
   events: DowntimeEvent[]
   machineNameById: Map<string, string>
+  lineNameById?: Map<string, string>
+  lineNameByMachineId?: Map<string, string>
+  /** When true (plant / all-lines view), show a Line column. */
+  showLine?: boolean
   loading?: boolean
   onAssign: (event: DowntimeEvent) => void
   pendingReviewCodes: Set<number>
@@ -44,6 +48,9 @@ interface Props {
 export function ReasonQueue({
   events,
   machineNameById,
+  lineNameById,
+  lineNameByMachineId,
+  showLine = false,
   loading,
   onAssign,
   pendingReviewCodes,
@@ -76,6 +83,7 @@ export function ReasonQueue({
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
   const pageRows = compact ? rows.slice(0, COMPACT_MAX) : rows.slice((page - 1) * pageSize, page * pageSize)
   const hideMachineCol = mode === 'machine'
+  const showLineCol = showLine && mode !== 'machine'
   const useRelativeTime = isMobile || mode === 'machine'
 
   const title =
@@ -130,6 +138,7 @@ export function ReasonQueue({
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Start</Table.Th>
+                  {showLineCol ? <Table.Th>Line</Table.Th> : null}
                   {!hideMachineCol ? <Table.Th>Machine</Table.Th> : null}
                   <Table.Th>Category</Table.Th>
                   <Table.Th>Duration</Table.Th>
@@ -140,11 +149,22 @@ export function ReasonQueue({
                 {pageRows.map((e) => {
                   const mName =
                     (e.machineId && machineNameById.get(e.machineId.toLowerCase())) ?? '—'
+                  const lName =
+                    (e.lineId && lineNameById?.get(e.lineId.toLowerCase())) ||
+                    (e.machineId && lineNameByMachineId?.get(e.machineId.toLowerCase())) ||
+                    '—'
                   return (
                     <Table.Tr key={e.id}>
                       <Table.Td>
                         <Text size="sm">{formatEventTime(e.startUtc, useRelativeTime)}</Text>
                       </Table.Td>
+                      {showLineCol ? (
+                        <Table.Td>
+                          <Text size="sm" fw={600}>
+                            {lName}
+                          </Text>
+                        </Table.Td>
+                      ) : null}
                       {!hideMachineCol ? <Table.Td>{mName}</Table.Td> : null}
                       <Table.Td>
                         <Group gap={4}>

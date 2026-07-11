@@ -75,7 +75,7 @@ export function ShiftSummaryWidget({ widget, ctx }: WidgetProps) {
             <MetricHero label="Downtime" value={formatDurationMinutes(data.downtimeMinutes)} helpId="downtimeMin" />
             <MetricHero
               label="Uptime"
-              value={formatDurationMinutes(aggregateSnapshots(ctx.lineSnapshots).uptimeMin)}
+              value={formatDurationMinutes(aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId).uptimeMin)}
               helpId="uptimeMin"
             />
           </SimpleGrid>
@@ -252,7 +252,7 @@ export function LossesDonutWidget({ widget, ctx }: WidgetProps) {
 
 export function ReliabilityPanelWidget({ widget, ctx }: WidgetProps) {
   const isPlant = widget.binding.source === 'plant' || (ctx.plantId != null && !ctx.lineId && !ctx.machineId)
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const { data } = usePolling<Reliability | null>(
     () => getReliability(ctx.lineId, ctx.plantId),
     10000,
@@ -339,9 +339,19 @@ export function StateTimelineWidget({ widget, ctx }: WidgetProps) {
   const presentStates = new Set(segs.map((s) => s.state))
 
   return (
-    <WidgetFrame title={widget.title ?? 'State Timeline'} noData={!ctx.snapshot}>
-      <Stack gap={8} h="100%" justify="center">
-        <div style={{ display: 'flex', width: '100%', height: 36, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--mantine-color-default-border)' }}>
+    <WidgetFrame title={widget.title ?? 'State Timeline'} noData={!ctx.snapshot} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      <Stack gap={10} h="100%" justify="center">
+        <div
+          style={{
+            display: 'flex',
+            width: '100%',
+            height: ctx.density === 'kiosk' ? 48 : 40,
+            borderRadius: 10,
+            overflow: 'hidden',
+            border: '1px solid var(--mantine-color-default-border)',
+            boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)',
+          }}
+        >
           {segs.length === 0 ? (
             <div style={{ width: '100%', backgroundColor: stateColor(ctx.snapshot?.state) }} title={ctx.snapshot?.state} />
           ) : (
@@ -359,15 +369,15 @@ export function StateTimelineWidget({ widget, ctx }: WidgetProps) {
             })
           )}
         </div>
-        <Group gap="xs">
+        <Group gap={6}>
           {STATE_LEGEND.filter((s) => presentStates.has(s) || s === ctx.snapshot?.state).map((s) => (
-            <Badge key={s} size="xs" variant="dot" color={stateColor(s)} style={{ textTransform: 'none' }}>
+            <Badge key={s} size="sm" variant="light" color={stateColor(s)} style={{ textTransform: 'none' }}>
               {s}
             </Badge>
           ))}
         </Group>
         <Text size="xs" c="dimmed">
-          Last 30 min · now: <b>{ctx.snapshot?.state}</b>
+          Last 30 min · now: <Text span fw={700}>{ctx.snapshot?.state}</Text>
         </Text>
       </Stack>
     </WidgetFrame>
@@ -456,6 +466,7 @@ export function PlantGridWidget({ widget, ctx }: WidgetProps) {
 export function MachineGridWidget({ widget, ctx }: WidgetProps) {
   const groupByLine = (widget.options.groupByLine as boolean | undefined) !== false
   const sortBy = ((widget.options.sortBy as MachineSortBy | undefined) ?? 'name') as MachineSortBy
+  const cardStyle = (widget.options.cardStyle as 'default' | 'performance' | undefined) ?? 'default'
   const { data } = usePolling<PlantNode[]>(() => getHierarchyTree(), 5000, [ctx.plantId])
   const groups = useMemo(
     () => buildMachineGridGroups(data ?? [], ctx.lineSnapshots, ctx.plantId ?? undefined, sortBy),
@@ -492,7 +503,12 @@ export function MachineGridWidget({ widget, ctx }: WidgetProps) {
                 </Text>
                 <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="sm">
                   {group.machines.map((entry) => (
-                    <MachineGridCard key={entry.machineId} snapshot={entry.snapshot} compact={compact} />
+                    <MachineGridCard
+                      key={entry.machineId}
+                      snapshot={entry.snapshot}
+                      compact={compact}
+                      cardStyle={cardStyle}
+                    />
                   ))}
                 </SimpleGrid>
               </Stack>
@@ -501,7 +517,12 @@ export function MachineGridWidget({ widget, ctx }: WidgetProps) {
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="sm">
             {flat.map((entry) => (
-              <MachineGridCard key={entry.machineId} snapshot={entry.snapshot} compact={compact} />
+              <MachineGridCard
+                key={entry.machineId}
+                snapshot={entry.snapshot}
+                compact={compact}
+                cardStyle={cardStyle}
+              />
             ))}
           </SimpleGrid>
         )}

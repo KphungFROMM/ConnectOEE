@@ -90,8 +90,16 @@ These become the design tokens defined in Phase 0 (`frontend/theme/`). Hex value
 
 These status colors are used consistently for line/machine status lights, Andon widgets, connection indicators, gauge thresholds, and KPI alarm coloring so meaning is uniform everywhere.
 
+### KPI factor identity colors (Admin-configurable)
+Default shipped tokens (OEE teal, Availability blue, Performance indigo, Quality grape) live in `frontend/src/theme/tokens.ts` as `oeeFactorColors`. Site admins can override them under **Admin → Appearance**; values persist in `AppearanceSettings` and apply to rings, waterfalls, and explorer loss charts. Widget **By value** band mode is separate and still uses performance tiers vs `targetOeePct`.
+
+**Status / Andon colors** (same tab): running, warning, fault, and idle hex overrides for line lights, Andon stacks, connection indicator mapping, and KPI band alerts. Defaults match `defaultStatusColors` in `tokens.ts`; live values are applied via `statusColorsRuntime`.
+
+**Header branding** (same Admin → Appearance tab): optional custom header title and logo (upload). Empty title/logo keep the product defaults (`ConnectOEE` + `/app-icon.png`). The authenticated shell always shows a **ConnectOEE** mark in the navigation sidebar; when the title is customized, **ConnectOEE** also appears muted under the header title. Login and wizard keep product branding.
+
 ## Plant Explorer vs Analytics
 
 - **Plant Explorer** is the live operational cockpit: current shift, SignalR machine snapshots, time-balance donut (uptime vs downtime), OEE waterfall, and recent downtime events. Default view is shift-to-date with optional last-8h toggle.
+- **Line topology** (Admin → Hierarchy): **Independent** lines roll up machines as parallel peers; **Continuous** lines show a Continuous badge and use the designated **output** station for line good/reject (and pacing for performance). Explorer tree KPIs, dashboards, historian, and closed shifts share the same rollup rules.
 - **Analytics** is the historical analysis workspace: longer ranges, compare periods, exports, supervisor reason correction, and full tabbed drill-down.
 - Both share chart components (OEE trend, loss pareto, production) but Explorer prioritizes **live-now** metrics in the hero row; Analytics prioritizes range comparison and reporting.

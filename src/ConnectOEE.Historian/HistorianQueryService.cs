@@ -56,8 +56,17 @@ public class HistorianQueryService : IHistorianQueryService
             {
                 var line = await _db.Lines.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct)
                            ?? throw new KeyNotFoundException($"Line {id} not found");
+                var oeeCfg = await _db.OeeConfigs.AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.LineId == id, ct);
                 var machineIds = await _db.Machines.AsNoTracking()
-                    .Where(x => x.LineId == id).Select(x => x.Id).ToListAsync(ct);
+                    .Where(x => x.LineId == id)
+                    .OrderBy(x => x.SequenceIndex)
+                    .Select(x => x.Id)
+                    .ToListAsync(ct);
+                var topology = LineTopologyResolver.FromConfig(oeeCfg, machineIds);
+                if (topology.Topology == LineTopology.Continuous
+                    && topology.OutputMachineId is Guid outputId)
+                    machineIds = new List<Guid> { outputId };
                 var cfg = await OeeCfgAsync(new[] { id }, from, to, ct);
                 return new Scope(line.Name, new[] { id }, machineIds, 1, cfg.ideal, cfg.target, false);
             }

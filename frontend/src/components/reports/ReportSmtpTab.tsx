@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Group, NumberInput, Stack, Switch, TextInput } from '@mantine/core'
+import { Button, Card, Group, NumberInput, Stack, Switch, Text, TextInput } from '@mantine/core'
 import { IconMail } from '@tabler/icons-react'
 import { getSmtp, saveSmtp, testSmtp } from '../../lib/reports'
 import { notifyReport } from './ReportHistoryTab'
@@ -62,8 +62,15 @@ export function ReportSmtpTab() {
   }
 
   return (
-    <Card withBorder radius="md" padding="lg" maw={560}>
+    <Card withBorder radius="md" padding="lg" maw={640}>
       <Stack>
+        <Group gap="xs">
+          <IconMail size={18} />
+          <Text fw={650}>Email delivery (SMTP)</Text>
+        </Group>
+        <Text size="sm" c="dimmed">
+          Used when a schedule delivers via email. File-drop schedules only need a folder path on the schedule itself.
+        </Text>
         <TextInput label="SMTP host" value={host} onChange={(e) => setHost(e.currentTarget.value)} />
         <Group grow>
           <NumberInput label="Port" value={port} onChange={(v) => setPort(Number(v) || 587)} />

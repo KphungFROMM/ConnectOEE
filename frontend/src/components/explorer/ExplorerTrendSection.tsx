@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Card, Group, SegmentedControl, Skeleton, Text } from '@mantine/core'
+import { Group, SegmentedControl, Skeleton, Text } from '@mantine/core'
 import { OeeTrendChart, type OeeTrendMode } from '../analytics/OeeTrendChart'
+import { WidgetSurface } from '../widgets/design/WidgetSurface'
 import type { TrendResult } from '../../lib/historian'
 import type { ExplorerRange } from './explorerTypes'
 
@@ -15,7 +16,7 @@ export function ExplorerTrendSection({ trend, initialLoading, range, onRangeChan
   const [chartMode, setChartMode] = useState<OeeTrendMode>('factors')
 
   return (
-    <Card withBorder radius="md" padding="md">
+    <WidgetSurface tone="neutral" padding="md" radius="md">
       <Group justify="space-between" mb="sm" wrap="wrap">
         <Text fw={600}>{chartMode === 'timeBalance' ? 'Time balance trend' : 'OEE trend'}</Text>
         <Group gap="xs" wrap="wrap">
@@ -44,6 +45,6 @@ export function ExplorerTrendSection({ trend, initialLoading, range, onRangeChan
       ) : (
         <OeeTrendChart trend={trend} mode={chartMode} />
       )}
-    </Card>
+    </WidgetSurface>
   )
 }

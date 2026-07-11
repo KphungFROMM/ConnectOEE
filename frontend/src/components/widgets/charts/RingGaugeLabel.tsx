@@ -7,11 +7,14 @@ export function RingGaugeLabel({
   sublabel,
   size = 'md',
   color,
+  maxWidth,
 }: {
   children: ReactNode
   sublabel?: ReactNode
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | string
   color?: string
+  /** Constrain text to the ring hole so digits do not paint under the stroke. */
+  maxWidth?: number
 }) {
   return (
     <Stack
@@ -22,7 +25,20 @@ export function RingGaugeLabel({
       h="100%"
       style={{ pointerEvents: 'none', minHeight: 0 }}
     >
-      <Text ta="center" lh={1} fw={800} size={size} c={color} style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <Text
+        ta="center"
+        lh={1}
+        fw={800}
+        size={size}
+        c={color}
+        style={{
+          fontVariantNumeric: 'tabular-nums',
+          maxWidth: maxWidth != null ? maxWidth : undefined,
+          overflow: 'hidden',
+          textOverflow: 'clip',
+          whiteSpace: 'nowrap',
+        }}
+      >
         {children}
       </Text>
       {sublabel ? (

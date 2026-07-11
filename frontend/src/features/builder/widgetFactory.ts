@@ -31,6 +31,7 @@ export function defaultBinding(
     'teep-tile': 'teepPct',
     'throughput-tile': 'actualRatePph',
     'oee-gauge': 'oeePct',
+    'oee-hero': 'oeePct',
   }
 
   if (meta?.options.includes('field') || fieldByType[type]) {
@@ -83,10 +84,11 @@ export function createWidget(
   ctx: CreateWidgetContext,
   position?: { x: number; y: number },
   maxRow = 0,
+  optionOverrides?: DashboardWidget['options'],
 ): DashboardWidget {
   const meta = widgetMetaByType[type]
   const binding = defaultBinding(type, ctx)
-  const options = defaultOptions(type)
+  const options = { ...defaultOptions(type), ...optionOverrides }
   if (type === 'factor-gauge') {
     binding.field = 'availabilityPct'
   }

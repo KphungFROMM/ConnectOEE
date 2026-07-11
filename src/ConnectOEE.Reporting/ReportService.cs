@@ -80,8 +80,21 @@ public class ReportService
         model.OeeTrendChart = _charts.RenderOeeTrend(model.Trend);
         model.ParetoChart = _charts.RenderPareto(model.Reasons);
         model.ProductionChart = _charts.RenderProductionVsTarget(model.Production);
+        model.OeeRingChart = _charts.RenderPercentRing(model.Oee.OeePct, model.TargetOeePct);
+        model.OeeSparkline = _charts.RenderOeeSparkline(model.Trend);
+        model.AvailabilitySparkline = _charts.RenderAvailabilitySparkline(model.Trend);
+        model.PerformanceSparkline = _charts.RenderPerformanceSparkline(model.Trend);
+        model.QualitySparkline = _charts.RenderQualitySparkline(model.Trend);
 
         var branding = await BuildBrandingAsync(level, scopeId, ct);
+
+        IReadOnlyList<ReportBlock>? customBlocks = null;
+        if (template.ReportType == ReportType.Custom)
+        {
+            customBlocks = ReportBlockLayout.Parse(template.LayoutJson);
+            if (customBlocks.Count == 0)
+                customBlocks = ReportBlockLayout.PresetFor(ReportType.WeeklySummary);
+        }
 
         byte[] content;
         string ext, contentType;
@@ -93,7 +106,7 @@ public class ReportService
         }
         else
         {
-            content = _pdf.Render(model, branding);
+            content = _pdf.Render(model, branding, customBlocks);
             ext = "pdf";
             contentType = "application/pdf";
         }

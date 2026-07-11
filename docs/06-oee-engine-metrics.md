@@ -17,6 +17,10 @@ Beyond core A/P/Q/OEE, the engine computes a full reliability and loss-analysis 
   2. **Product catalog** (`ProductRecipe.IdealCycleTimeSec`) — plant-wide engineering default (e.g. PKG-STD at 1.8 s).
   3. **Line fallback** (`OeeConfig.IdealRatePerHour` / `IdealCycleTimeSec`) — used when no product is active or cycle is unknown (e.g. 2168 pph ≈ 1.66 s only when that is the stored fallback, not when a faster line-speed override is resolving live).
 - **Line operating profile** (`OeeConfig.ProductionMode`): `MultiProduct` (default), `DedicatedProduct` (single-SKU line — keep fallback aligned with that product’s line speed), `NoProductTracking` (performance uses line fallback only).
+- **Line topology** (`OeeConfig.Topology`):
+  - **`Independent`** (default): machines are parallel peers. Line rollups **sum** good/reject and **average** A/P (Explorer, dashboards, historian, closed shift).
+  - **`Continuous`**: product feeds A→B→C. Line good/reject come from the **output machine** (`LineOutputMachineId`, default = last by `SequenceIndex`). Performance uses the **pacing machine** (`PacingMachineId`, default = output). Live A uses the **minimum** station availability; status remains worst-child. Map Good/Reject primarily on the output station in Tag Mapping.
+  - Shared helper: `LineKpiRollup` / `LineTopologyResolver` — one definition for hierarchy tree, `GET /api/live/line/{id}/rollup`, historian Line scope, and shift close.
 - **Industry examples**:
   - *Mixed-product line*: catalog defaults per SKU; line speeds tune each SKU per line; fallback used between changeovers or when PartId is missing.
   - *Dedicated single-SKU line*: one catalog entry; line speed often matches catalog; fallback synced to that product.

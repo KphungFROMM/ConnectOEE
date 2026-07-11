@@ -40,14 +40,15 @@ public class DashboardsController : ControllerBase
     }
 
     public record WidgetDto(Guid Id, string Type, string? Title, int X, int Y, int W, int H,
-        JsonElement Binding, JsonElement Options);
+        JsonElement Binding, JsonElement Options, Guid? ParentId, string? TabKey);
     public record DashboardDto(Guid Id, string Name, string Scope, bool IsPublished, int Version,
         Guid? PlantId, Guid? LineId, Guid? MachineId, List<WidgetDto> Widgets);
     public record DashboardSummary(Guid Id, string Name, string Scope, bool IsPublished, Guid? PlantId, Guid? LineId, Guid? MachineId,
         string? PlantName, string? LineName, string? MachineName, string InferredCategory);
     public record TemplateDto(Guid Id, string Name, string Category, string? Description, string? LayoutJson, int? WidgetCount);
     public record ApplyTemplateRequest(Guid TemplateId, string? Name, Guid? PlantId, Guid? LineId, Guid? MachineId);
-    public record SaveWidget(string Type, string? Title, int X, int Y, int W, int H, JsonElement? Binding, JsonElement? Options);
+    public record SaveWidget(string Type, string? Title, int X, int Y, int W, int H, JsonElement? Binding, JsonElement? Options,
+        Guid? Id = null, Guid? ParentId = null, string? TabKey = null);
     public record SaveDashboardRequest(string Name, string? Scope, bool? IsPublished, Guid? PlantId, Guid? LineId, Guid? MachineId, List<SaveWidget> Widgets);
     public record VersionDto(int Version, bool IsAutosave, DateTimeOffset SavedUtc);
     public record SaveAsTemplateRequest(string Name, string? Category, string? Description);
@@ -77,12 +78,16 @@ public class DashboardsController : ControllerBase
 
         var plantTemplateNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "Plant Overview", "Multi-Line Overview", "Executive Summary", "Maintenance / Fault Focus", "TEEP Utilization",
+            "Plant Overview", "Analytics Starter", "Maintenance Wall",
+            // legacy resolved names still seen on old dashboards during refresh
+            "Plant Command Center", "Floor At-a-Glance", "Executive Briefing", "Plant Reliability Hub", "TEEP & Utilization",
         };
 
         var kioskTemplateNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "Andon / Big Screen", "Operator Station", "Maintenance Wallboard",
+            "Operator Floor", "Line Andon", "Maintenance Wall",
+            "Operator Kiosk", "Line Andon Wall", "Maintenance Wallboard",
+            "Andon / Big Screen", "Operator Station",
         };
 
         foreach (var d in dashboards)
@@ -101,10 +106,51 @@ public class DashboardsController : ControllerBase
                     d.PlantId = pid;
             }
 
-            if (kioskTemplateNames.Contains(templateName))
+            // Force kiosk only from dashboard identity — not from resolved template
+            // (e.g. legacy "— Detail" remaps layout to a kiosk-capable template but stays private).
+            var name = d.Name;
+            static bool EndsWithSuffix(string n, string suffix) =>
+                n.EndsWith(" — " + suffix, StringComparison.OrdinalIgnoreCase)
+                || n.EndsWith(" - " + suffix, StringComparison.OrdinalIgnoreCase);
+
+            var forceKiosk =
+                d.Scope == DashboardScope.PublicKiosk
+                || kioskTemplateNames.Contains(name)
+                || EndsWithSuffix(name, "Andon")
+                || EndsWithSuffix(name, "Operator Kiosk")
+                || EndsWithSuffix(name, "Operator Floor")
+                || name.Equals("Maintenance Wall", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("Maintenance Wallboard", StringComparison.OrdinalIgnoreCase);
+            // Only keep force-kiosk for true kiosk boards — demote wizard analysis boards.
+            var isKioskBoard =
+                kioskTemplateNames.Contains(name)
+                || EndsWithSuffix(name, "Andon")
+                || EndsWithSuffix(name, "Operator Kiosk")
+                || EndsWithSuffix(name, "Operator Floor")
+                || name.Equals("Maintenance Wall", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("Maintenance Wallboard", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("Andon / Big Screen", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("Operator Station", StringComparison.OrdinalIgnoreCase);
+
+            if (isKioskBoard)
             {
                 d.Scope = DashboardScope.PublicKiosk;
                 d.IsPublished = true;
+            }
+            else if (
+                d.Scope == DashboardScope.PublicKiosk
+                && (EndsWithSuffix(name, "Detail")
+                    || EndsWithSuffix(name, "Setup")
+                    || EndsWithSuffix(name, "Shift")
+                    || EndsWithSuffix(name, "Overview")
+                    || EndsWithSuffix(name, "Downtime")
+                    || EndsWithSuffix(name, "Production")
+                    || EndsWithSuffix(name, "Quality")
+                    || EndsWithSuffix(name, "Supervisor")
+                    || name.Equals("Maintenance / Fault Focus", StringComparison.OrdinalIgnoreCase)))
+            {
+                d.Scope = DashboardScope.Private;
+                d.IsPublished = false;
             }
 
             var widgets = ParseWidgets(layoutJson);
@@ -226,18 +272,8 @@ public class DashboardsController : ControllerBase
             IsPublished = true,
         };
 
-        foreach (var w in ParseWidgets(tpl.LayoutJson))
-        {
-            dashboard.Widgets.Add(new Widget
-            {
-                DashboardId = dashboard.Id,
-                Type = w.Type,
-                Title = w.Title,
-                X = w.X, Y = w.Y, W = w.W, H = w.H,
-                BindingJson = w.Binding?.GetRawText() ?? "{}",
-                OptionsJson = w.Options?.GetRawText() ?? "{}",
-            });
-        }
+        foreach (var entity in BuildWidgetEntities(dashboard.Id, ParseWidgets(tpl.LayoutJson)))
+            dashboard.Widgets.Add(entity);
 
         _db.Dashboards.Add(dashboard);
         await _db.SaveChangesAsync();
@@ -316,18 +352,8 @@ public class DashboardsController : ControllerBase
         // Replace the widget set with a bulk delete + insert (avoids tracked-collection
         // churn and the associated concurrency pitfalls for a full-layout save).
         await _db.Widgets.Where(w => w.DashboardId == id).ExecuteDeleteAsync();
-        foreach (var w in req.Widgets ?? new())
-        {
-            _db.Widgets.Add(new Widget
-            {
-                DashboardId = id,
-                Type = w.Type,
-                Title = w.Title,
-                X = w.X, Y = w.Y, W = w.W, H = w.H,
-                BindingJson = w.Binding?.GetRawText() ?? "{}",
-                OptionsJson = w.Options?.GetRawText() ?? "{}",
-            });
-        }
+        foreach (var entity in BuildWidgetEntities(id, req.Widgets ?? new()))
+            _db.Widgets.Add(entity);
 
         // Snapshot the layout for rollback; autosaves are flagged so the history UI can
         // distinguish them from explicit saves.
@@ -473,7 +499,7 @@ public class DashboardsController : ControllerBase
         {
             HttpOnly = true,
             Secure = Request.IsHttps,
-            SameSite = SameSiteMode.Strict,
+            SameSite = SameSiteMode.Lax,
             Path = "/",
             MaxAge = TimeSpan.FromHours(_security.KioskTokenHours),
         });
@@ -546,25 +572,56 @@ public class DashboardsController : ControllerBase
 
     private static void ApplyWidgets(Dashboard d, List<SaveWidget>? widgets)
     {
-        foreach (var w in widgets ?? new())
-        {
-            d.Widgets.Add(new Widget
-            {
-                DashboardId = d.Id,
-                Type = w.Type,
-                Title = w.Title,
-                X = w.X, Y = w.Y, W = w.W, H = w.H,
-                BindingJson = w.Binding?.GetRawText() ?? "{}",
-                OptionsJson = w.Options?.GetRawText() ?? "{}",
-            });
-        }
+        foreach (var entity in BuildWidgetEntities(d.Id, widgets ?? new()))
+            d.Widgets.Add(entity);
     }
 
-    private static DashboardDto ToDto(Dashboard d) => new(
-        d.Id, d.Name, d.Scope.ToString(), d.IsPublished, d.Version, d.PlantId, d.LineId, d.MachineId,
-        d.Widgets.OrderBy(w => w.Y).ThenBy(w => w.X).Select(w => new WidgetDto(
-            w.Id, w.Type, w.Title, w.X, w.Y, w.W, w.H,
-            Parse(w.BindingJson), Parse(w.OptionsJson))).ToList());
+    private static List<Widget> BuildWidgetEntities(Guid dashboardId, List<SaveWidget> widgets)
+    {
+        var knownIds = new HashSet<Guid>();
+        foreach (var w in widgets)
+        {
+            if (w.Id is { } id && id != Guid.Empty)
+                knownIds.Add(id);
+        }
+
+        return widgets.Select(w =>
+        {
+            Guid? parentId = w.ParentId;
+            if (parentId is { } pid && !knownIds.Contains(pid))
+                parentId = null;
+
+            var entity = new Widget
+            {
+                DashboardId = dashboardId,
+                Type = w.Type,
+                Title = w.Title,
+                X = w.X,
+                Y = w.Y,
+                W = w.W,
+                H = w.H,
+                ParentId = parentId,
+                TabKey = string.IsNullOrWhiteSpace(w.TabKey) ? null : w.TabKey.Trim(),
+                BindingJson = w.Binding?.GetRawText() ?? "{}",
+                OptionsJson = w.Options?.GetRawText() ?? "{}",
+            };
+            if (w.Id is { } preserveId && preserveId != Guid.Empty)
+                entity.Id = preserveId;
+            return entity;
+        }).ToList();
+    }
+
+    private static DashboardDto ToDto(Dashboard d)
+    {
+        var idSet = d.Widgets.Select(w => w.Id).ToHashSet();
+        return new(
+            d.Id, d.Name, d.Scope.ToString(), d.IsPublished, d.Version, d.PlantId, d.LineId, d.MachineId,
+            d.Widgets.OrderBy(w => w.Y).ThenBy(w => w.X).Select(w => new WidgetDto(
+                w.Id, w.Type, w.Title, w.X, w.Y, w.W, w.H,
+                Parse(w.BindingJson), Parse(w.OptionsJson),
+                w.ParentId is { } p && idSet.Contains(p) ? p : null,
+                w.TabKey)).ToList());
+    }
 
     private static JsonElement Parse(string json)
     {

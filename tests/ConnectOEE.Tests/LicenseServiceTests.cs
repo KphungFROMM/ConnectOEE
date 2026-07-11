@@ -1,3 +1,4 @@
+using Connect.Licensing.Core;
 using ConnectOEE.Core.Licensing;
 
 namespace ConnectOEE.Tests;
@@ -7,8 +8,8 @@ public class LicenseValidatorTests
     [Fact]
     public void GeneratedKey_Validates()
     {
-        var key = LicenseValidator.GenerateKey("Test Holder");
-        Assert.True(LicenseValidator.TryValidate(key, out var payload));
+        var key = LicenseValidator.GenerateKey(ConnectProduct.Oee, "Test Holder", machineId: null);
+        Assert.True(LicenseValidator.TryValidate(ConnectProduct.Oee, key, out var payload, checkMachineBinding: false));
         Assert.NotNull(payload);
         Assert.Equal("ConnectOEE", payload.Product);
         Assert.Equal("Full", payload.Edition);
@@ -18,14 +19,14 @@ public class LicenseValidatorTests
     [Fact]
     public void WrongPrefix_IsRejected()
     {
-        var mbtStyle = LicenseValidator.GenerateKey("Test").Replace("CONNECT-OEE-", "CONNECT-MBT-");
-        Assert.False(LicenseValidator.TryValidate(mbtStyle, out _));
+        var mbtStyle = LicenseValidator.GenerateKey(ConnectProduct.Oee, "Test", machineId: null).Replace("CONNECT-OEE-", "CONNECT-MBT-");
+        Assert.False(LicenseValidator.TryValidate(ConnectProduct.Oee, mbtStyle, out _));
     }
 
     [Fact]
     public void TamperedKey_IsRejected()
     {
-        Assert.False(LicenseValidator.TryValidate("CONNECT-OEE-invalid.sig", out _));
+        Assert.False(LicenseValidator.TryValidate(ConnectProduct.Oee, "CONNECT-OEE-invalid.sig", out _));
     }
 
     [Fact]
@@ -39,8 +40,8 @@ public class LicenseValidatorTests
     [Fact]
     public void TermKey_IncludesExpires()
     {
-        var key = LicenseValidator.GenerateKey("Term User", TimeSpan.FromDays(365));
-        Assert.True(LicenseValidator.TryValidate(key, out var payload));
+        var key = LicenseValidator.GenerateKey(ConnectProduct.Oee, "Term User", TimeSpan.FromDays(365), machineId: null);
+        Assert.True(LicenseValidator.TryValidate(ConnectProduct.Oee, key, out var payload, checkMachineBinding: false));
         Assert.NotNull(payload!.Expires);
         Assert.False(LicenseValidator.IsExpired(payload.Expires));
     }
@@ -70,7 +71,7 @@ public class LicenseServiceTests : IDisposable
         Assert.True(svc.IsValid);
         Assert.Equal(1, svc.MaxPlants);
         Assert.Equal(2, svc.MaxLines);
-        Assert.False(svc.RockwellDriverEnabled);
+        Assert.False(svc.PlcDriversEnabled);
         Assert.False(svc.PdfReportsEnabled);
         Assert.Equal(1, svc.MaxKioskDashboards);
     }
@@ -78,11 +79,11 @@ public class LicenseServiceTests : IDisposable
     [Fact]
     public void ActivateValidKey_GrantsFullFeatures()
     {
-        var key = LicenseValidator.GenerateKey("Acme Corp");
+        var key = LicenseValidator.GenerateKey(ConnectProduct.Oee, "Acme Corp", machineId: null);
         var svc = new LicenseService();
         Assert.True(svc.ValidateAndActivate(key));
         Assert.Equal(LicenseEdition.Full, svc.Edition);
-        Assert.True(svc.RockwellDriverEnabled);
+        Assert.True(svc.PlcDriversEnabled);
         Assert.Equal(int.MaxValue, svc.MaxPlants);
     }
 
@@ -99,7 +100,7 @@ public class LicenseServiceTests : IDisposable
     {
         var svc = new PersonalLicenseService();
         Assert.Equal(LicenseEdition.Personal, svc.Edition);
-        Assert.True(svc.RockwellDriverEnabled);
+        Assert.True(svc.PlcDriversEnabled);
         Assert.Equal(int.MaxValue, svc.MaxLines);
     }
 }

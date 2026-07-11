@@ -9,6 +9,9 @@ import { WidgetFrame, fmtNumber, oeeColor, stateColor, resolveFrameVariant } fro
 import type { WidgetProps } from './common'
 import { MetricHero } from './design/MetricHero'
 import { InfoStrip } from './design/InfoStrip'
+import { GaugeRing } from './design/GaugeRing'
+import { TrafficBandBadge } from './design/StatusVisual'
+import { resolveStatusStyle } from './design/statusStyle'
 import { flatLines } from './plantLineRanking'
 import { resolveScopedSnapshot } from './resolveScopedSnapshot'
 import { usePolling } from './usePolling'
@@ -28,31 +31,81 @@ export function OeeTrafficLightWidget({ widget, ctx }: WidgetProps) {
   const color = trafficColor(oee, green, amber)
   const variant = resolveFrameVariant(widget, ctx)
   const kiosk = variant === 'kiosk' || ctx.density === 'kiosk'
-  const size = kiosk ? 120 : 88
+  const statusStyle = resolveStatusStyle(widget.options.statusStyle, 'pill')
+  const bandLabel = oee >= green ? 'On target' : oee >= amber ? 'Watch' : 'At risk'
+  const valueText = `${oee.toFixed(1)}%`
 
   return (
-    <WidgetFrame title={widget.title ?? 'OEE Signal'} noData={!snap} stale={!ctx.hubConnected} variant={variant} density={ctx.density}>
-      <Stack align="center" justify="center" h="100%" gap={kiosk ? 12 : 8}>
-        <div
-          style={{
-            width: size,
-            height: size,
-            borderRadius: 16,
-            background: `linear-gradient(145deg, ${color} 0%, ${color}cc 100%)`,
-            boxShadow: `0 8px 32px ${color}55, inset 0 2px 12px rgba(255,255,255,0.25)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text fw={900} c="white" size={kiosk ? '2.5rem' : 'xl'} style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {oee.toFixed(1)}%
+    <WidgetFrame
+      title={widget.title ?? 'OEE Signal'}
+      noData={!snap}
+      stale={!ctx.hubConnected}
+      variant={variant}
+      density={ctx.density}
+      wallBoard={ctx.wallBoard}
+      tone={oee >= green ? 'good' : oee >= amber ? 'warn' : 'bad'}
+      calmMuted={oee >= green}
+    >
+      {statusStyle === 'beacon' || statusStyle === 'tower' ? (
+        <Stack align="center" justify="center" h="100%" gap={kiosk ? 10 : 6}>
+          <GaugeRing
+            value={oee}
+            label="OEE"
+            size={kiosk ? 120 : 96}
+            ringColor={color}
+            showLabelBelow
+            valueOutside={false}
+            decimals={1}
+          />
+          <TrafficBandBadge label={bandLabel} color={color} size={kiosk ? 'lg' : 'md'} />
+        </Stack>
+      ) : statusStyle === 'minimal' ? (
+        <Stack align="center" justify="center" h="100%" gap={8}>
+          <Text fw={900} size={kiosk ? '2.25rem' : 'xl'} style={{ fontVariantNumeric: 'tabular-nums', color }} lh={1}>
+            {valueText}
           </Text>
-        </div>
-        <Badge size={kiosk ? 'lg' : 'md'} variant="light" color={oee >= green ? 'green' : oee >= amber ? 'yellow' : 'red'}>
-          {oee >= green ? 'On target' : oee >= amber ? 'Watch' : 'At risk'}
-        </Badge>
-      </Stack>
+          <TrafficBandBadge label={bandLabel} color={color} size={kiosk ? 'lg' : 'md'} />
+        </Stack>
+      ) : statusStyle === 'strip' ? (
+        <Stack justify="center" h="100%" gap={10} px={4}>
+          <Group justify="space-between" wrap="nowrap">
+            <Text fw={900} size={kiosk ? '2rem' : 'xl'} style={{ fontVariantNumeric: 'tabular-nums', color }} lh={1}>
+              {valueText}
+            </Text>
+            <TrafficBandBadge label={bandLabel} color={color} size={kiosk ? 'lg' : 'md'} />
+          </Group>
+          <Progress
+            value={Math.min(100, Math.max(0, oee))}
+            size="lg"
+            radius="xl"
+            styles={{
+              section: { backgroundColor: color },
+            }}
+          />
+        </Stack>
+      ) : (
+        <Stack justify="center" h="100%" gap={10} px={4}>
+          <div
+            style={{
+              borderRadius: 12,
+              padding: kiosk ? '16px 18px' : '12px 14px',
+              border: `1px solid color-mix(in srgb, ${color} 28%, var(--mantine-color-default-border))`,
+              background: `color-mix(in srgb, ${color} 10%, var(--mantine-color-body))`,
+              borderLeft: `4px solid ${color}`,
+            }}
+          >
+            <Text size="xs" c="dimmed" fw={700} tt="uppercase" mb={4}>
+              OEE
+            </Text>
+            <Text fw={900} size={kiosk ? '2.25rem' : 'xl'} style={{ fontVariantNumeric: 'tabular-nums', color }} lh={1}>
+              {valueText}
+            </Text>
+          </div>
+          <Group justify="center">
+            <TrafficBandBadge label={bandLabel} color={color} size={kiosk ? 'lg' : 'md'} />
+          </Group>
+        </Stack>
+      )}
     </WidgetFrame>
   )
 }
@@ -124,7 +177,7 @@ export function ShiftContextStripWidget({ widget, ctx }: WidgetProps) {
 export function ActiveDowntimeTimerWidget({ widget, ctx }: WidgetProps) {
   const snap = ctx.snapshot
   const state = snap?.state
-  const isDown = state === 'Down' || state === 'Setup' || state === 'Idle'
+  const isDown = state === 'Down' || state === 'Setup'
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
@@ -139,14 +192,35 @@ export function ActiveDowntimeTimerWidget({ widget, ctx }: WidgetProps) {
 
   if (!isDown) {
     return (
-      <WidgetFrame title={widget.title ?? 'Downtime'} tone="good" variant={variant} density={ctx.density}>
-        <InfoStrip variant="calm" density={ctx.density} compact title="RUNNING" subtitle="No active downtime" />
+      <WidgetFrame
+        title={widget.title ?? 'Downtime'}
+        tone="neutral"
+        calmMuted
+        variant={variant}
+        density={ctx.density}
+        wallBoard={ctx.wallBoard}
+      >
+        <InfoStrip
+          variant="calm"
+          density={ctx.density}
+          wallBoard={ctx.wallBoard}
+          compact
+          title="RUNNING"
+          subtitle="No active downtime"
+        />
       </WidgetFrame>
     )
   }
 
   return (
-    <WidgetFrame title={widget.title ?? 'Active Downtime'} tone="bad" variant={variant} density={ctx.density} stale={!ctx.hubConnected}>
+    <WidgetFrame
+      title={widget.title ?? 'Active Downtime'}
+      tone="bad"
+      variant={variant}
+      density={ctx.density}
+      wallBoard={ctx.wallBoard}
+      stale={!ctx.hubConnected}
+    >
       <Stack gap={6} justify="center" h="100%" align="center">
         <Text size={ctx.density === 'kiosk' ? '3rem' : '2rem'} fw={900} c="red" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {Math.floor(downMin)}m
@@ -185,7 +259,15 @@ export function QuickLinksBarWidget({ widget }: WidgetProps) {
 export function LineStatusStripWidget({ widget, ctx }: WidgetProps) {
   const { data: tree } = usePolling<PlantNode[]>(() => getHierarchyTree(), 15000, [])
   const plantId = ctx.plantId?.toLowerCase()
-  const lines = useMemo(() => flatLines(tree ?? [], plantId).slice(0, 8), [tree, plantId])
+  const lineId = ctx.lineId?.toLowerCase()
+  const source = widget.binding.source
+  const lines = useMemo(() => {
+    let list = flatLines(tree ?? [], plantId)
+    if ((source === 'line' || lineId) && lineId) {
+      list = list.filter(({ line }) => line.id.toLowerCase() === lineId)
+    }
+    return list.slice(0, 8)
+  }, [tree, plantId, lineId, source])
 
   return (
     <WidgetFrame title={widget.title ?? 'Line Status'} noData={lines.length === 0} stale={!ctx.hubConnected}>
@@ -219,6 +301,9 @@ export function LineStatusStripWidget({ widget, ctx }: WidgetProps) {
                     {line.name}
                   </Text>
                 </Group>
+                <Text size="10px" c="dimmed" tt="uppercase" fw={600}>
+                  {state}
+                </Text>
                 <Text size="sm" fw={800} c={oeeColor()} style={{ fontVariantNumeric: 'tabular-nums' }}>
                   {line.kpi.oeePct.toFixed(1)}%
                 </Text>
@@ -243,9 +328,21 @@ export function PaceGaugeWidget({ widget, ctx }: WidgetProps) {
   const variant = resolveFrameVariant(widget, ctx)
 
   return (
-    <WidgetFrame title={widget.title ?? 'Pace & Attainment'} noData={!snap} stale={!ctx.hubConnected} variant={variant} density={ctx.density}>
+    <WidgetFrame
+      title={widget.title ?? 'Pace & Attainment'}
+      noData={!snap}
+      stale={!ctx.hubConnected}
+      variant={variant}
+      density={ctx.density}
+      wallBoard={ctx.wallBoard}
+    >
       <Stack gap="sm" justify="center" h="100%">
-        <MetricHero value={`${runPct.toFixed(1)}%`} label="Attainment" color="var(--mantine-color-teal-6)" />
+        <MetricHero
+          value={`${runPct.toFixed(1)}%`}
+          label="Attainment"
+          color="var(--mantine-color-teal-6)"
+          density={ctx.density}
+        />
         <Progress value={Math.min(100, runPct)} size="lg" radius="xl" color="teal" />
         <Text size="sm" fw={700} c={pace >= 0 ? 'teal' : 'orange'} ta="center">
           {pace >= 0 ? '+' : ''}
@@ -306,14 +403,21 @@ export function UnassignedStopsBannerWidget({ widget, ctx }: WidgetProps) {
 
   if (count === 0) {
     return (
-      <WidgetFrame title={widget.title ?? 'Reason queue'} tone="good" variant={variant}>
-        <InfoStrip variant="calm" compact title="All stops attributed" subtitle="No pending operator reasons" />
+      <WidgetFrame title={widget.title ?? 'Reason queue'} tone="neutral" calmMuted variant={variant} density={ctx.density} wallBoard={ctx.wallBoard}>
+        <InfoStrip
+          variant="calm"
+          compact
+          wallBoard={ctx.wallBoard}
+          density={ctx.density}
+          title="All stops attributed"
+          subtitle="No pending operator reasons"
+        />
       </WidgetFrame>
     )
   }
 
   return (
-    <WidgetFrame title={widget.title ?? 'Unassigned stops'} tone="warn" variant={variant} stale={!ctx.hubConnected}>
+    <WidgetFrame title={widget.title ?? 'Unassigned stops'} tone="warn" variant={variant} density={ctx.density} wallBoard={ctx.wallBoard} stale={!ctx.hubConnected}>
       <Group justify="space-between" align="center" h="100%">
         <Group gap="sm">
           <IconAlertTriangle size={28} color="var(--mantine-color-orange-6)" />

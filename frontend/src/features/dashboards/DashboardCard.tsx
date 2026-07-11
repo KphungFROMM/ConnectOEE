@@ -1,9 +1,9 @@
 import { ActionIcon, Badge, Card, Group, Stack, Text, Tooltip } from '@mantine/core'
-import { IconDeviceTv, IconLayoutGrid, IconPencil, IconPin, IconPinFilled } from '@tabler/icons-react'
+import { IconClock, IconDeviceTv, IconLayoutGrid, IconPencil, IconPin, IconPinFilled } from '@tabler/icons-react'
 import type { DashboardSummary } from '../../lib/dashboards'
 import {
-  bindingContextLabel,
   CATEGORY_COLORS,
+  displaySubtitle,
   displayTitle,
   resolveCategory,
   scopeLabel,
@@ -13,14 +13,23 @@ interface DashboardCardProps {
   dashboard: DashboardSummary
   canBuild: boolean
   pinned: boolean
+  recent?: boolean
   onOpen: (id: string) => void
   onEdit: (id: string) => void
   onTogglePin: (id: string) => void
 }
 
-export function DashboardCard({ dashboard, canBuild, pinned, onOpen, onEdit, onTogglePin }: DashboardCardProps) {
+export function DashboardCard({
+  dashboard,
+  canBuild,
+  pinned,
+  recent = false,
+  onOpen,
+  onEdit,
+  onTogglePin,
+}: DashboardCardProps) {
   const category = resolveCategory(dashboard)
-  const binding = bindingContextLabel(dashboard)
+  const subtitle = displaySubtitle(dashboard)
   const isKiosk = dashboard.scope === 'PublicKiosk'
 
   return (
@@ -39,9 +48,9 @@ export function DashboardCard({ dashboard, canBuild, pinned, onOpen, onEdit, onT
               <Text fw={600} truncate>
                 {displayTitle(dashboard)}
               </Text>
-              {dashboard.name !== displayTitle(dashboard) ? (
+              {subtitle ? (
                 <Text size="xs" c="dimmed" truncate>
-                  {dashboard.name}
+                  {subtitle}
                 </Text>
               ) : null}
             </Stack>
@@ -80,13 +89,17 @@ export function DashboardCard({ dashboard, canBuild, pinned, onOpen, onEdit, onT
           <Badge size="xs" variant="dot" color={isKiosk ? 'violet' : dashboard.isPublished ? 'green' : 'gray'}>
             {scopeLabel(dashboard)}
           </Badge>
+          {pinned ? (
+            <Badge size="xs" variant="light" color="blue" leftSection={<IconPinFilled size={10} />}>
+              Pinned
+            </Badge>
+          ) : null}
+          {recent ? (
+            <Badge size="xs" variant="light" color="gray" leftSection={<IconClock size={10} />}>
+              Recent
+            </Badge>
+          ) : null}
         </Group>
-
-        {binding ? (
-          <Text size="xs" c="dimmed" lineClamp={2}>
-            {binding}
-          </Text>
-        ) : null}
 
         {isKiosk ? (
           <Group gap={4} onClick={(e) => e.stopPropagation()}>

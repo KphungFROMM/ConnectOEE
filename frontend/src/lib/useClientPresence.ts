@@ -35,7 +35,6 @@ function routePageLabel(pathname: string): string {
   if (pathname === '/plant-explorer') return 'Plant Explorer'
   if (pathname === '/analytics') return 'Analytics'
   if (pathname === '/reports') return 'Reports'
-  if (pathname === '/tags') return 'Tag Browser'
   if (pathname.startsWith('/builder')) return 'Dashboard Builder'
   if (pathname === '/admin') return 'Admin'
   if (pathname === '/wizard') return 'Setup Wizard'

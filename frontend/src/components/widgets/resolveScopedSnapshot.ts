@@ -116,7 +116,7 @@ export function resolveScopedSnapshot(ctx: WidgetCtx, binding?: WidgetBinding): 
     const snaps = ctx.lineSnapshots
     if (snaps.length === 0) return ctx.snapshot
     if (snaps.length === 1) return snaps[0]
-    return toPseudoSnapshot(aggregateSnapshots(snaps), snaps[0])
+    return toPseudoSnapshot(aggregateSnapshots(snaps, ctx.lineTopologyByLineId), snaps[0])
   }
 
   return ctx.snapshot ?? ctx.lineSnapshots[0]

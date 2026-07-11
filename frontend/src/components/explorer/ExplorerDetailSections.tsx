@@ -6,7 +6,9 @@ import type { MachineSnapshot } from '../../lib/liveHub'
 import { getCurrentShift, getDowntime, type DowntimeEvent, type ShiftInstance } from '../../lib/metrics'
 import { formatDurationMinutes, formatDurationSeconds } from '../../lib/formatDuration'
 import { scopeToParam } from '../../lib/scopeFromUrl'
-import { MetricHero } from '../widgets/design/MetricHero'
+import { PresentationKpi } from '../widgets/design/PresentationKpi'
+import { WidgetFrame } from '../widgets/common'
+import { WidgetSurface } from '../widgets/design/WidgetSurface'
 import { DowntimeByMachineChart } from './DowntimeByMachineChart'
 import { liveMetricsFromSnapshot, type ExplorerLiveMetrics } from './explorerKpi'
 import type { DrillNode } from '../../lib/historian'
@@ -22,7 +24,7 @@ export function OfflineHint({ connectionState }: { connectionState: string }) {
   if (connectionState === 'Stale' || connectionState === 'Connecting' || connectionState === 'Faulted') return null
   return (
     <Alert color="gray" variant="light" title="Not live yet">
-      System is connected; this node has no live PLC snapshot yet. Map Run State and Good Count in Tag Browser, or
+      System is connected; this node has no live PLC snapshot yet. Map Run State and Good Count in Admin → Tag Mapping, or
       restart the API after adding machines so drivers pick up the new hierarchy.
     </Alert>
   )
@@ -73,7 +75,7 @@ export function ShiftContextBar({
   }, [startUtc, endUtc])
 
   return (
-    <Card withBorder radius="md" padding="md">
+    <WidgetSurface tone="info" padding="md" radius="md">
       <Group justify="space-between" mb="xs" wrap="wrap">
         <div>
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
@@ -102,27 +104,24 @@ export function ShiftContextBar({
           </Group>
         </Stack>
       ) : null}
-    </Card>
+    </WidgetSurface>
   )
 }
 
 export function ReliabilityStrip({ live }: { live: ExplorerLiveMetrics | null }) {
   if (!live) return null
   return (
-    <Card withBorder radius="md" padding="md">
-      <Text size="sm" fw={600} mb="xs">
-        Reliability (shift)
-      </Text>
+    <WidgetFrame title="Reliability (shift)">
       <SimpleGrid cols={{ base: 2, sm: 4, md: 7 }} spacing="xs">
-        <MetricHero label="MTTR" value={`${live.mttrMin.toFixed(1)}m`} helpId="mttrMin" />
-        <MetricHero label="MTBF" value={formatDurationMinutes(live.mtbfMin)} helpId="mtbfMin" />
-        <MetricHero label="MTTF" value={formatDurationMinutes(live.mttfMin)} helpId="mttfMin" />
-        <MetricHero label="MTTD" value={formatDurationMinutes(live.mttdMin)} helpId="mttdMin" />
-        <MetricHero label="Stops/hr" value={live.stopsPerHour.toFixed(1)} helpId="stopsPerHour" />
-        <MetricHero label="Failures" value={`${live.failureCount}`} helpId="failureCount" />
-        <MetricHero label="Micro-stops" value={`${live.microStopCount}`} helpId="microStopCount" />
+        <PresentationKpi presentation="ring" label="MTTR" value={`${live.mttrMin.toFixed(1)}m`} numericValue={live.mttrMin} max={30} helpId="mttrMin" />
+        <PresentationKpi presentation="number" label="MTBF" value={formatDurationMinutes(live.mtbfMin)} helpId="mtbfMin" />
+        <PresentationKpi presentation="number" label="MTTF" value={formatDurationMinutes(live.mttfMin)} helpId="mttfMin" />
+        <PresentationKpi presentation="number" label="MTTD" value={formatDurationMinutes(live.mttdMin)} helpId="mttdMin" />
+        <PresentationKpi presentation="ring" label="Stops/hr" value={live.stopsPerHour.toFixed(1)} numericValue={live.stopsPerHour} max={10} helpId="stopsPerHour" />
+        <PresentationKpi presentation="number" label="Failures" value={`${live.failureCount}`} helpId="failureCount" />
+        <PresentationKpi presentation="number" label="Micro-stops" value={`${live.microStopCount}`} helpId="microStopCount" />
       </SimpleGrid>
-    </Card>
+    </WidgetFrame>
   )
 }
 

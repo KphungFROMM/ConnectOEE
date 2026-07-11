@@ -4,7 +4,7 @@ import { TimeBalanceChart } from '../analytics/TimeBalanceChart'
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useMemo } from 'react'
 import { getDowntimeByOperator, getReliability, type Reliability } from '../../lib/metrics'
-import { oeeFactorColors } from '../../theme/tokens'
+import { getFactorColors } from '../../theme/factorColorsRuntime'
 import { WaterfallChart } from './charts/WaterfallChart'
 import { LeaderboardBars } from './charts/LeaderboardBars'
 import { WidgetFrame, fmtNumber, formatDurationMinutes } from './common'
@@ -54,7 +54,7 @@ function pickReliability(
 
 export function ReliabilityClusterWidget({ widget, ctx }: WidgetProps) {
   const isPlant = isPlantScope(widget, ctx)
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const { data: api } = usePolling<Reliability | null>(
     () => getReliability(ctx.lineId, ctx.plantId),
     10000,
@@ -79,7 +79,7 @@ export function ReliabilityClusterWidget({ widget, ctx }: WidgetProps) {
 
 export function LossMinutesBridgeWidget({ widget, ctx }: WidgetProps) {
   const isPlant = isPlantScope(widget, ctx)
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const s = ctx.snapshot
   const aLoss = isPlant ? agg.availabilityLossMin : s?.availabilityLossMin ?? 0
   const pLoss = isPlant ? agg.performanceLossMin : s?.performanceLossMin ?? 0
@@ -87,15 +87,16 @@ export function LossMinutesBridgeWidget({ widget, ctx }: WidgetProps) {
   const total = Math.max(aLoss + pLoss + qLoss, 1)
   const hasData = isPlant ? ctx.lineSnapshots.length > 0 : !!s
 
+  const colors = getFactorColors()
   const steps = [
     { name: 'Start', value: total, fill: '#8A929E' },
-    { name: 'A', value: aLoss, fill: oeeFactorColors.availability.hex },
-    { name: 'P', value: pLoss, fill: oeeFactorColors.performance.hex },
-    { name: 'Q', value: qLoss, fill: oeeFactorColors.quality.hex },
+    { name: 'A', value: aLoss, fill: colors.availability.hex },
+    { name: 'P', value: pLoss, fill: colors.performance.hex },
+    { name: 'Q', value: qLoss, fill: colors.quality.hex },
     {
       name: 'OEE',
       value: Math.max(0, total - aLoss - pLoss - qLoss),
-      fill: oeeFactorColors.oee.hex,
+      fill: colors.oee.hex,
     },
   ]
 
@@ -113,7 +114,7 @@ export function LossMinutesBridgeWidget({ widget, ctx }: WidgetProps) {
 
 export function CycleTimeCompareWidget({ widget, ctx }: WidgetProps) {
   const isPlant = isPlantScope(widget, ctx)
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const s = ctx.snapshot
   const actual = isPlant ? agg.actualCycleTimeSec : s?.actualCycleTimeSec ?? 0
   const ideal = isPlant ? agg.idealCycleTimeSec : s?.idealCycleTimeSec ?? 0
@@ -153,7 +154,7 @@ export function CycleTimeCompareWidget({ widget, ctx }: WidgetProps) {
 
 export function RateVarianceWidget({ widget, ctx }: WidgetProps) {
   const isPlant = isPlantScope(widget, ctx)
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const s = ctx.snapshot
   const actualRaw = isPlant ? agg.actualRatePph : s?.actualRatePph ?? 0
   const actual = typeof actualRaw === 'number' ? actualRaw : Number(actualRaw ?? 0)
@@ -181,7 +182,7 @@ export function RateVarianceWidget({ widget, ctx }: WidgetProps) {
 
 export function TimeBalanceWidget({ widget, ctx }: WidgetProps) {
   const isPlant = isPlantScope(widget, ctx)
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const s = ctx.snapshot
   const uptime = isPlant ? agg.uptimeMin : s?.uptimeMin ?? 0
   const downtime = isPlant ? agg.downtimeMin : s?.downtimeMin ?? 0
@@ -218,7 +219,7 @@ export function ReliabilityTrendWidget({ widget, ctx }: WidgetProps) {
     [trend],
   )
   const hasChart = chartData.length >= 2
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
 
   return (
     <WidgetFrame
@@ -270,9 +271,10 @@ export function LossTrendWidget({ widget, ctx }: WidgetProps) {
     [trend],
   )
   const hasChart = chartData.length >= 2
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const liveTotal = agg.availabilityLossMin + agg.performanceLossMin + agg.qualityLossMin
   const hasProductionData = agg.goodCount + agg.rejectCount > 0 || agg.downtimeMin > 0
+  const colors = getFactorColors()
 
   return (
     <WidgetFrame
@@ -292,9 +294,9 @@ export function LossTrendWidget({ widget, ctx }: WidgetProps) {
               <YAxis tick={{ fontSize: 10 }} width={32} />
               <Tooltip />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Area type="monotone" dataKey="A" stackId="loss" fill={oeeFactorColors.availability.hex} stroke={oeeFactorColors.availability.hex} />
-              <Area type="monotone" dataKey="P" stackId="loss" fill={oeeFactorColors.performance.hex} stroke={oeeFactorColors.performance.hex} />
-              <Area type="monotone" dataKey="Q" stackId="loss" fill={oeeFactorColors.quality.hex} stroke={oeeFactorColors.quality.hex} />
+              <Area type="monotone" dataKey="A" stackId="loss" fill={colors.availability.hex} stroke={colors.availability.hex} />
+              <Area type="monotone" dataKey="P" stackId="loss" fill={colors.performance.hex} stroke={colors.performance.hex} />
+              <Area type="monotone" dataKey="Q" stackId="loss" fill={colors.quality.hex} stroke={colors.quality.hex} />
             </AreaChart>
           </ResponsiveContainer>
         </ChartShell>

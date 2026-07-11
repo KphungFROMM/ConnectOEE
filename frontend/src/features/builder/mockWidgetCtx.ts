@@ -135,6 +135,7 @@ export function createMockWidgetCtx(overrides: Partial<WidgetCtx> = {}): WidgetC
     hubConnected: true,
     density: 'normal',
     wallBoard: false,
+    allowInteractiveWrites: false,
     ...overrides,
   }
 }

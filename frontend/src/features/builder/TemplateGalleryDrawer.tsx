@@ -48,11 +48,15 @@ function TemplatePreviewImage({ name }: { name: string }) {
     <Image
       src={meta.previewPath}
       alt={`${name} preview`}
-      h={120}
-      fit="cover"
+      w="100%"
+      fit="contain"
       radius="md"
       onError={() => setFailed(true)}
       fallbackSrc={`/template-previews/${meta.slug}.svg`}
+      style={{
+        aspectRatio: '16 / 9',
+        background: 'var(--mantine-color-gray-0)',
+      }}
     />
   )
 }
@@ -113,7 +117,7 @@ export function TemplateGalleryDrawer({ opened, onClose, onApply }: TemplateGall
         <Stack gap="md">
           <Group justify="space-between">
             <Text size="sm" c="dimmed">
-              Ready-to-go v7 layouts — pick a role-based board and apply to your plant or line.
+              Ready-to-go v8 layouts — pick a role-based board and apply to your plant or line.
             </Text>
             <Badge size="sm" variant="light">
               {templates.length} templates
@@ -169,6 +173,11 @@ export function TemplateGalleryDrawer({ opened, onClose, onApply }: TemplateGall
                             <Badge size="xs" variant="outline" color="gray">
                               {meta?.scope ?? 'line'}
                             </Badge>
+                            {meta?.purpose ? (
+                              <Badge size="xs" variant="light" color="teal">
+                                {meta.purpose}
+                              </Badge>
+                            ) : null}
                             <Badge size="xs" variant="outline" color="gray">
                               {t.widgetCount ?? meta?.widgetCount ?? '—'} widgets
                             </Badge>

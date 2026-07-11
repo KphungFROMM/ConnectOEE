@@ -1,13 +1,15 @@
-import { Anchor, Card, ScrollArea, Stack, Tabs, Text, TextInput } from '@mantine/core'
+import { Anchor, Badge, Card, ScrollArea, Stack, Tabs, Text, TextInput } from '@mantine/core'
 import type { DashboardWidget } from '../../lib/dashboards'
 import type { WidgetCtx } from '../../components/widgets/common'
 import { widgetMetaByType } from '../../components/widgets/registry'
+import { childrenOf, isNestHostType } from '../../lib/widgetNesting'
 import { BindingEditor, LayoutFields } from './BindingEditor'
 import { WidgetOptionsEditor, hasWidgetOptions } from './WidgetOptionsEditor'
 import { DISPLAY_PROFILES, exceedsProfile, type DisplayProfileId } from './displayProfiles'
 
 interface PropertiesPanelProps {
   widget: DashboardWidget | null
+  widgets?: DashboardWidget[]
   machineId?: string | null
   lineId?: string | null
   ctx: WidgetCtx
@@ -20,6 +22,7 @@ interface PropertiesPanelProps {
 
 export function PropertiesPanel({
   widget,
+  widgets = [],
   machineId,
   lineId,
   ctx,
@@ -31,6 +34,8 @@ export function PropertiesPanel({
 }: PropertiesPanelProps) {
   const budget = DISPLAY_PROFILES[displayProfile].maxRows
   const overBudget = exceedsProfile(maxRow, displayProfile)
+  const childCount =
+    widget && isNestHostType(widget.type) ? childrenOf(widgets, widget.id).length : 0
 
   return (
     <Card withBorder padding="sm" w={280} style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -63,6 +68,11 @@ export function PropertiesPanel({
             <Text size="10px" c="dimmed">
               {widgetMetaByType[widget.type]?.label ?? widget.type}
             </Text>
+            {isNestHostType(widget.type) ? (
+              <Badge size="sm" variant="light" color="blue">
+                Contains {childCount} widget{childCount === 1 ? '' : 's'}
+              </Badge>
+            ) : null}
             <Tabs defaultValue="data" variant="outline">
               <Tabs.List grow>
                 <Tabs.Tab value="data" fz="xs">

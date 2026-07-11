@@ -3,11 +3,13 @@ import { BarChart, LineChart } from '@mantine/charts'
 import { useMemo } from 'react'
 import { getHierarchyTree } from '../../lib/hierarchy'
 import { getDowntime, getReliability, getUnassignedDowntime, type DowntimeEvent, type Reliability } from '../../lib/metrics'
-import { Sparkline } from './charts/Sparkline'
-import { WidgetFrame, fmtNumber, oeeColor, stateColor, formatDurationMinutes } from './common'
+import { WidgetFrame, fmtNumber, oeeColor, stateColor, formatDurationMinutes, resolveFrameVariant, wallContentLabel, kpiAccentColor, resolveKpiColorMode } from './common'
 import type { WidgetProps } from './common'
 import { ChartShell, SummaryChip } from './design/ChartShell'
 import { MetricHero } from './design/MetricHero'
+import { PresentationKpi, resolveKpiPresentation } from './design/PresentationKpi'
+import { StatusVisual } from './design/StatusVisual'
+import { resolveStatusStyle } from './design/statusStyle'
 import { KpiTileWidget } from './tiles'
 import { flatLines } from './plantLineRanking'
 import { resolveScopedField, resolveScopedSnapshot } from './resolveScopedSnapshot'
@@ -22,12 +24,19 @@ export function MttrTileWidget({ widget, ctx }: WidgetProps) {
     10000,
     [ctx.lineId, ctx.plantId],
   )
-  const mttr = data?.mttrMin ?? 0
+  const mttr = data?.mttrMin ?? ctx.snapshot?.mttrMin ?? 0
   return (
-    <WidgetFrame title={widget.title ?? 'MTTR'} helpId="mttrMin" noData={!data && !ctx.snapshot} stale={!ctx.hubConnected}>
-      <Text size="30px" fw={800}>
-        {formatDurationMinutes(mttr)}
-      </Text>
+    <WidgetFrame title={widget.title ?? 'MTTR'} helpId="mttrMin" noData={!data && !ctx.snapshot} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      <PresentationKpi
+        presentation={resolveKpiPresentation(widget.options.presentation)}
+        value={formatDurationMinutes(mttr)}
+        numericValue={mttr}
+        max={Math.max(60, mttr)}
+        color="var(--mantine-color-orange-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+        helpId="mttrMin"
+      />
     </WidgetFrame>
   )
 }
@@ -38,12 +47,19 @@ export function MtbfTileWidget({ widget, ctx }: WidgetProps) {
     10000,
     [ctx.lineId, ctx.plantId],
   )
-  const mtbf = data?.mtbfMin ?? 0
+  const mtbf = data?.mtbfMin ?? ctx.snapshot?.mtbfMin ?? 0
   return (
-    <WidgetFrame title={widget.title ?? 'MTBF'} helpId="mtbfMin" noData={!data && !ctx.snapshot} stale={!ctx.hubConnected}>
-      <Text size="30px" fw={800}>
-        {formatDurationMinutes(mtbf)}
-      </Text>
+    <WidgetFrame title={widget.title ?? 'MTBF'} helpId="mtbfMin" noData={!data && !ctx.snapshot} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      <PresentationKpi
+        presentation={resolveKpiPresentation(widget.options.presentation)}
+        value={formatDurationMinutes(mtbf)}
+        numericValue={mtbf}
+        max={Math.max(120, mtbf)}
+        color="var(--mantine-color-teal-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+        helpId="mtbfMin"
+      />
     </WidgetFrame>
   )
 }
@@ -65,9 +81,24 @@ export function TotalCountTileWidget({ widget, ctx }: WidgetProps) {
   const good = (resolveScopedField(ctx, widget.binding, 'goodCount') as number) ?? 0
   const reject = (resolveScopedField(ctx, widget.binding, 'rejectCount') as number) ?? 0
   const total = good + reject
+  const presentation = resolveKpiPresentation(widget.options.presentation)
   return (
-    <WidgetFrame title={widget.title ?? 'Total Count'} noData={!resolveScopedSnapshot(ctx, widget.binding)} stale={!ctx.hubConnected}>
-      <MetricHero value={fmtNumber(total)} />
+    <WidgetFrame
+      title={widget.title ?? 'Total Count'}
+      noData={!resolveScopedSnapshot(ctx, widget.binding)}
+      stale={!ctx.hubConnected}
+      variant={resolveFrameVariant(widget, ctx)}
+      density={ctx.density}
+      wallBoard={ctx.wallBoard}
+    >
+      <PresentationKpi
+        presentation={presentation}
+        value={fmtNumber(total)}
+        numericValue={total}
+        max={Math.max(total, 1000)}
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+      />
     </WidgetFrame>
   )
 }
@@ -78,14 +109,9 @@ export function CountToGoWidget({ widget, ctx }: WidgetProps) {
   const remaining = Math.max(0, target - good)
   const pct = target > 0 ? Math.min(100, (good / target) * 100) : 0
   return (
-    <WidgetFrame title={widget.title ?? 'Count to Go'} noData={target <= 0} stale={!ctx.hubConnected}>
+    <WidgetFrame title={widget.title ?? 'Count to Go'} noData={target <= 0} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
       <Stack gap={6} justify="center" h="100%">
-        <Text size="30px" fw={800} style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {fmtNumber(remaining)}
-        </Text>
-        <Text size="xs" c="dimmed">
-          {fmtNumber(good)} / {fmtNumber(target)} ({pct.toFixed(0)}%)
-        </Text>
+        <MetricHero value={fmtNumber(remaining)} subtitle={`${fmtNumber(good)} / ${fmtNumber(target)} (${pct.toFixed(0)}%)`} density={ctx.density} />
         <Progress value={pct} size="sm" radius="xl" color="teal" />
       </Stack>
     </WidgetFrame>
@@ -152,15 +178,34 @@ export function SparklineTileWidget({ widget, ctx }: WidgetProps) {
     [trend, field],
   )
   const live = resolveScopedField(ctx, widget.binding, field)
+  const isNum = typeof live === 'number'
+  const presentation = resolveKpiPresentation(widget.options.presentation ?? 'spark')
+  const display =
+    live == null
+      ? '—'
+      : isNum
+        ? `${live.toFixed(1)}${field.includes('Pct') ? '%' : ''}`
+        : String(live)
   return (
-    <WidgetFrame title={widget.title ?? String(field)} noData={sparkData.length < 2 && live == null} stale={!ctx.hubConnected}>
-      <Stack gap={4} justify="center" h="100%">
-        <Text fw={800} size="lg">
-          {typeof live === 'number' ? live.toFixed(1) : '—'}
-          {field.includes('Pct') && typeof live === 'number' ? '%' : ''}
-        </Text>
-        {sparkData.length >= 2 ? <Sparkline data={sparkData} color={oeeColor()} filled height={40} /> : null}
-      </Stack>
+    <WidgetFrame
+      title={widget.title ?? String(field)}
+      noData={sparkData.length < 2 && live == null}
+      stale={!ctx.hubConnected}
+      variant={resolveFrameVariant(widget, ctx)}
+      density={ctx.density}
+      wallBoard={ctx.wallBoard}
+      accentColor={oeeColor()}
+    >
+      <PresentationKpi
+        presentation={presentation}
+        value={display}
+        numericValue={isNum ? live : undefined}
+        max={field.includes('Pct') ? 100 : Math.max(isNum ? live : 100, 100)}
+        color={oeeColor()}
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+        sparklineData={sparkData.length >= 2 ? sparkData : undefined}
+      />
     </WidgetFrame>
   )
 }
@@ -168,28 +213,49 @@ export function SparklineTileWidget({ widget, ctx }: WidgetProps) {
 export function LinearGaugeWidget({ widget, ctx }: WidgetProps) {
   const field = widget.binding.field ?? 'oeePct'
   const raw = resolveScopedField(ctx, widget.binding, field)
-  const pct = typeof raw === 'number' ? Math.min(100, Math.max(0, raw)) : 0
+  const isNum = typeof raw === 'number'
+  const pct = isNum ? Math.min(100, Math.max(0, raw)) : 0
+  const presentation = resolveKpiPresentation(widget.options.presentation ?? 'gauge')
+  const snap = resolveScopedSnapshot(ctx, widget.binding)
+  const accent = kpiAccentColor({
+    field,
+    value: isNum ? raw : null,
+    mode: resolveKpiColorMode(widget.options.colorMode),
+    connectionState: snap?.connectionState,
+    targetOeePct: snap?.targetOeePct,
+  })
   return (
-    <WidgetFrame title={widget.title ?? String(field)} noData={raw == null} stale={!ctx.hubConnected}>
-      <Stack gap={6} justify="center" h="100%">
-        <Progress value={pct} size="xl" radius="xl" color="teal" />
-        <Text size="sm" fw={700} ta="center">
-          {pct.toFixed(1)}%
-        </Text>
-      </Stack>
+    <WidgetFrame
+      title={widget.title ?? String(field)}
+      noData={raw == null}
+      stale={!ctx.hubConnected}
+      variant={resolveFrameVariant(widget, ctx)}
+      density={ctx.density}
+      wallBoard={ctx.wallBoard}
+      accentColor={accent}
+    >
+      <PresentationKpi
+        presentation={presentation}
+        value={isNum ? `${pct.toFixed(1)}%` : '—'}
+        numericValue={isNum ? pct : undefined}
+        max={100}
+        color={accent}
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+      />
     </WidgetFrame>
   )
 }
 
 export function OeeByShiftWidget({ widget, ctx }: WidgetProps) {
-  const { data: trend } = useHistorianTrend(ctx, 'Hour')
+  const { data: trend } = useHistorianTrend(ctx, 'Shift')
   const chartData = useMemo(
     () => (trend?.points ?? []).map((p) => ({ label: p.label, OEE: p.oee.oeePct })),
     [trend],
   )
   const live = resolveScopedField(ctx, widget.binding, 'oeePct') as number ?? 0
   return (
-    <WidgetFrame title={widget.title ?? 'OEE by Hour'} noData={chartData.length === 0 && live === 0} stale={!ctx.hubConnected}>
+    <WidgetFrame title={widget.title ?? 'OEE by Shift'} noData={chartData.length === 0 && live === 0} stale={!ctx.hubConnected}>
       {chartData.length > 0 ? (
         <ChartShell bucketCount={chartData.length}>
           <BarChart h="100%" data={chartData} dataKey="label" series={[{ name: 'OEE', color: 'teal.6' }]} gridAxis="y" />
@@ -226,45 +292,85 @@ export function UnitsPerShiftWidget({ widget, ctx }: WidgetProps) {
   const { data: production } = useHistorianProduction(ctx, 'Hour')
   const total = (production ?? []).reduce((s, p) => s + p.goodCount, 0)
   const live = (resolveScopedField(ctx, widget.binding, 'goodCount') as number) ?? 0
+  const value = total || live
+  const presentation = resolveKpiPresentation(widget.options.presentation)
   return (
-    <WidgetFrame title={widget.title ?? 'Units / Shift'} noData={total === 0 && live === 0} stale={!ctx.hubConnected}>
-      <MetricHero value={fmtNumber(total || live)} unit="good" />
+    <WidgetFrame
+      title={widget.title ?? 'Units / Shift'}
+      noData={total === 0 && live === 0}
+      stale={!ctx.hubConnected}
+      variant={resolveFrameVariant(widget, ctx)}
+      density={ctx.density}
+      wallBoard={ctx.wallBoard}
+    >
+      <PresentationKpi
+        presentation={presentation}
+        value={fmtNumber(value)}
+        numericValue={value}
+        max={Math.max(value, 1000)}
+        unit="good"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+      />
     </WidgetFrame>
   )
 }
 
 export function LineStatusIndicatorWidget({ widget, ctx }: WidgetProps) {
   const { data: tree } = usePolling(() => getHierarchyTree(), 10000, [])
-  const lines = flatLines(tree, ctx.plantId)
+  const source = widget.binding.source
+  const lines = flatLines(tree, ctx.plantId).filter(({ line }) => {
+    if (source === 'line' || ctx.lineId) {
+      const want = (ctx.lineId ?? '').toLowerCase()
+      return !want || line.id.toLowerCase() === want
+    }
+    return true
+  })
   const worst = lines.reduce<{ status: string; name: string } | null>((acc, { line }) => {
     const rank = STATE_RANK[line.kpi.status] ?? 99
     if (!acc || rank < (STATE_RANK[acc.status] ?? 99)) return { status: line.kpi.status, name: line.name }
     return acc
   }, null)
+  const variant = resolveFrameVariant(widget, ctx)
+  const statusStyle = resolveStatusStyle(widget.options.statusStyle, 'pill')
 
   return (
-    <WidgetFrame title={widget.title ?? 'Line Status'} noData={!worst} stale={!ctx.hubConnected}>
-      <Stack align="center" justify="center" h="100%" gap="xs">
-        <Badge size="xl" color={stateColor(worst?.status)} variant="filled">
-          {worst?.status ?? '—'}
-        </Badge>
-        <Text size="xs" c="dimmed">
-          Worst: {worst?.name}
-        </Text>
-      </Stack>
+    <WidgetFrame title={widget.title ?? 'Line Status'} noData={!worst} stale={!ctx.hubConnected} variant={variant} density={ctx.density} accentColor={stateColor(worst?.status)}>
+      <StatusVisual
+        style={statusStyle === 'tower' || statusStyle === 'strip' ? 'pill' : statusStyle}
+        state={worst?.status}
+        density={ctx.density}
+        context={worst?.name ? (ctx.lineId ? worst.name : `Worst: ${worst.name}`) : null}
+      />
     </WidgetFrame>
   )
 }
 
 export function RunStateBadgeWidget({ widget, ctx }: WidgetProps) {
   const state = ctx.snapshot?.state ?? ctx.lineSnapshots[0]?.state
+  const variant = resolveFrameVariant(widget, ctx)
+  const statusStyle = resolveStatusStyle(widget.options.statusStyle, 'beacon')
+  const product = ctx.snapshot?.activeRecipeCode ?? ctx.snapshot?.activeRecipeName
+  const good = ctx.snapshot?.goodCount
+  const context =
+    product != null
+      ? String(product)
+      : good != null
+        ? `${good.toLocaleString()} good`
+        : null
   return (
-    <WidgetFrame title={widget.title ?? 'Run State'} noData={!state} stale={!ctx.hubConnected} accentColor={stateColor(state)}>
-      <Stack align="center" justify="center" h="100%">
-        <Badge size="xl" color={stateColor(state)} variant="light">
-          {state ?? '—'}
-        </Badge>
-      </Stack>
+    <WidgetFrame
+      title={widget.title ?? 'Run State'}
+      noData={!state}
+      stale={!ctx.hubConnected}
+      accentColor={stateColor(state)}
+      tone={state === 'Down' || state === 'Setup' ? 'bad' : state === 'Running' ? 'good' : 'warn'}
+      calmMuted={state === 'Running'}
+      variant={variant}
+      density={ctx.density}
+      wallBoard={ctx.wallBoard}
+    >
+      <StatusVisual style={statusStyle} state={state} density={ctx.density} context={context} />
     </WidgetFrame>
   )
 }

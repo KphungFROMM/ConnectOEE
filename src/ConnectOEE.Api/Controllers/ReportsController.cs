@@ -59,6 +59,10 @@ public class ReportsController : ControllerBase
     public async Task<ActionResult<TemplateDto>> SaveCustomTemplate([FromBody] SaveCustomTemplateRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Name)) return BadRequest(new { message = "Name is required" });
+        var layout = string.IsNullOrWhiteSpace(req.LayoutJson) ? "[]" : req.LayoutJson;
+        var err = ReportBlockLayout.Validate(layout);
+        if (err is not null) return BadRequest(new { message = err });
+
         var t = new ReportTemplate
         {
             Name = req.Name.Trim(),
@@ -66,16 +70,16 @@ public class ReportsController : ControllerBase
             ReportType = ReportType.Custom,
             IsSystem = false,
             IsPublished = true,
-            LayoutJson = string.IsNullOrWhiteSpace(req.LayoutJson) ? "[]" : req.LayoutJson,
+            LayoutJson = layout,
         };
         _db.ReportTemplates.Add(t);
         await _db.SaveChangesAsync(ct);
         return Ok(new TemplateDto(t.Id, t.Name, t.Description, t.ReportType.ToString(), t.IsSystem, t.IsPublished));
     }
 
-    // ----- On-demand generation -----
-
-    public record TemplateDetailDto(Guid Id, string Name, string? Description, string ReportType, bool IsSystem, bool IsPublished, string[] SuggestedRanges);
+    public record TemplateDetailDto(
+        Guid Id, string Name, string? Description, string ReportType, bool IsSystem, bool IsPublished,
+        string[] SuggestedRanges, string? LayoutJson);
 
     [HttpGet("templates/{id:guid}")]
     [HasPermission(PermissionKeys.ViewReports)]
@@ -84,8 +88,89 @@ public class ReportsController : ControllerBase
         var t = await _db.ReportTemplates.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (t is null) return NotFound();
         return Ok(new TemplateDetailDto(t.Id, t.Name, t.Description, t.ReportType.ToString(), t.IsSystem, t.IsPublished,
-            SuggestedRangesFor(t.ReportType)));
+            SuggestedRangesFor(t.ReportType),
+            t.ReportType == ReportType.Custom ? t.LayoutJson : null));
     }
+
+    [HttpPut("templates/{id:guid}")]
+    [HasPermission(PermissionKeys.ManageReports)]
+    public async Task<ActionResult<TemplateDto>> UpdateTemplate(Guid id, [FromBody] SaveCustomTemplateRequest req, CancellationToken ct)
+    {
+        var t = await _db.ReportTemplates.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (t is null) return NotFound();
+        if (t.IsSystem || t.ReportType != ReportType.Custom)
+            return BadRequest(new { message = "Only custom templates can be updated." });
+        if (string.IsNullOrWhiteSpace(req.Name)) return BadRequest(new { message = "Name is required" });
+
+        var layout = string.IsNullOrWhiteSpace(req.LayoutJson) ? "[]" : req.LayoutJson;
+        var err = ReportBlockLayout.Validate(layout);
+        if (err is not null) return BadRequest(new { message = err });
+
+        t.Name = req.Name.Trim();
+        t.Description = req.Description?.Trim();
+        t.LayoutJson = layout;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new TemplateDto(t.Id, t.Name, t.Description, t.ReportType.ToString(), t.IsSystem, t.IsPublished));
+    }
+
+    [HttpDelete("templates/{id:guid}")]
+    [HasPermission(PermissionKeys.ManageReports)]
+    public async Task<IActionResult> DeleteTemplate(Guid id, CancellationToken ct)
+    {
+        var t = await _db.ReportTemplates.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (t is null) return NotFound();
+        if (t.IsSystem || t.ReportType != ReportType.Custom)
+            return BadRequest(new { message = "Only custom templates can be deleted." });
+
+        var inUse = await _db.ReportSchedules.AnyAsync(s => s.ReportTemplateId == id, ct);
+        if (inUse) return BadRequest(new { message = "Template is used by one or more schedules. Remove those schedules first." });
+
+        _db.ReportTemplates.Remove(t);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    public record ForkTemplateRequest(string? Name);
+
+    /// <summary>Fork a system template into an editable Custom template with matching block layout.</summary>
+    [HttpPost("templates/{id:guid}/fork")]
+    [HasPermission(PermissionKeys.ManageReports)]
+    public async Task<ActionResult<TemplateDetailDto>> ForkTemplate(Guid id, [FromBody] ForkTemplateRequest? req, CancellationToken ct)
+    {
+        var source = await _db.ReportTemplates.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (source is null) return NotFound();
+
+        IReadOnlyList<ReportBlock> blocks;
+        if (source.ReportType == ReportType.Custom)
+        {
+            blocks = ReportBlockLayout.Parse(source.LayoutJson);
+            if (blocks.Count == 0) blocks = ReportBlockLayout.PresetFor(ReportType.WeeklySummary);
+        }
+        else
+        {
+            blocks = ReportBlockLayout.PresetFor(source.ReportType);
+        }
+
+        var name = string.IsNullOrWhiteSpace(req?.Name)
+            ? $"{source.Name} (copy)"
+            : req!.Name!.Trim();
+
+        var t = new ReportTemplate
+        {
+            Name = name,
+            Description = source.Description,
+            ReportType = ReportType.Custom,
+            IsSystem = false,
+            IsPublished = true,
+            LayoutJson = ReportBlockLayout.Serialize(blocks),
+        };
+        _db.ReportTemplates.Add(t);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new TemplateDetailDto(t.Id, t.Name, t.Description, t.ReportType.ToString(), t.IsSystem, t.IsPublished,
+            SuggestedRangesFor(ReportType.Custom), t.LayoutJson));
+    }
+
+    // ----- On-demand generation -----
 
     private static string[] SuggestedRangesFor(ReportType type) => type switch
     {

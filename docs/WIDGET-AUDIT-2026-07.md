@@ -1,6 +1,8 @@
 # Widget Visual Audit — July 2026
 
-Systematic QA pass for all **100** widget types via the dev **Widget Audit Gallery** at `/dev/widgets` (requires `dashboards.build` permission).
+Systematic QA pass for all **111** widget types via the **Widget library** at `/admin?tab=widgets` and `/dev/widgets` (requires `dashboards.build` or admin).
+
+> **Update (full redesign):** See [WIDGET-REDESIGN-2026-07.md](WIDGET-REDESIGN-2026-07.md) and [WIDGET-LIBRARY-INVENTORY-2026-07.md](WIDGET-LIBRARY-INVENTORY-2026-07.md). State & status bare badges were replaced with `StatusMetricTile` / `StatusBeacon`; KPI tiles use `PresentationKpi`. Screenshots: `docs/widget-screenshots/`.
 
 ## How to reproduce
 
@@ -61,7 +63,7 @@ Severity: **blocker** · **polish** · **docs**
 | Reliability & downtime | 22 | ✅ | ✅ | 0 |
 | Charts & trends | 12 | ✅ | ✅ | 0 |
 | Production & shift | 18 | ✅ | ✅ | 0 |
-| State & status | 10 | ✅ | ✅ | 0 |
+| State & status | 13 | ✅ | ✅ | 0 |
 | Interactive | 3 | ✅ | ✅ | 0 |
 | Layout, media & utility | 14 | ✅ | ✅ | 0 |
 | Tables & lists | 5 | ✅ | ✅ | 0 |

@@ -55,10 +55,10 @@ export function TemplateAuditGallery({ embedded = false }: TemplateAuditGalleryP
     >
       <Group justify="space-between" wrap="wrap">
         <div>
-          <Title order={embedded ? 3 : 2}>Template Audit Gallery (v7.1)</Title>
+          <Title order={embedded ? 3 : 2}>Template Audit Gallery (v8)</Title>
           <Text size="sm" c="dimmed">
-            All system templates in a 1080p wall frame — no scroll, wall-fit preview. Screenshot each in light and dark
-            at 1920×1080 for QA.
+            Curated system templates in a 1080p wall frame — no scroll, wall-fit preview with the v8 visual language.
+            Screenshot each in light and dark at 1920×1080 for QA.
           </Text>
         </div>
         <SegmentedControl
@@ -74,7 +74,7 @@ export function TemplateAuditGallery({ embedded = false }: TemplateAuditGalleryP
       {loading ? (
         <Text c="dimmed">Loading templates…</Text>
       ) : sorted.length === 0 ? (
-        <Text c="dimmed">No templates with layout data. Sign in with build permission and ensure v7.1 seed ran.</Text>
+        <Text c="dimmed">No templates with layout data. Sign in with build permission and ensure v8 seed ran.</Text>
       ) : (
         sorted.map((t) => {
           const meta = getTemplateMeta(t.name)

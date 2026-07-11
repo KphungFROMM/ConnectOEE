@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { Alert, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core'
+import { Alert, Divider, Group, SimpleGrid, Stack, Text } from '@mantine/core'
 import { BarChart, DonutChart } from '@mantine/charts'
 import type { KpiSnapshot } from '../../lib/historian'
 import type { Reliability } from '../../lib/metrics'
@@ -7,7 +7,8 @@ import { formatDurationMinutes } from '../../lib/formatDuration'
 import { MetricLabel } from '../help/HelpTrigger'
 import { FactorGaugeVisual } from '../widgets/charts/FactorGaugeVisual'
 import { GaugeRing } from '../widgets/design/GaugeRing'
-import { oeeExplorerHexColor } from '../widgets/common'
+import { WidgetSurface } from '../widgets/design/WidgetSurface'
+import { oeeExplorerHexColor, oeeSurfaceTone } from '../widgets/common'
 import { TimeBalanceChart, type TimeBalanceData } from './TimeBalanceChart'
 
 export function deltaPct(current: number, prior: number | undefined): string | null {
@@ -77,6 +78,8 @@ interface Props {
   unplannedMin?: number
   hideTeep?: boolean
   footer?: ReactNode
+  /** Drives the tiered OEE ring/tone color; omit only for scopes with no live PLC connection concept. */
+  connectionState?: string
 }
 
 export function ModernKpiHero({
@@ -88,13 +91,15 @@ export function ModernKpiHero({
   unplannedMin,
   hideTeep = false,
   footer,
+  connectionState = 'Connected',
 }: Props) {
   const oee = display.oee
-  const oeeHex = oeeExplorerHexColor(oee.oeePct)
+  const oeeHex = oeeExplorerHexColor(oee.oeePct, connectionState)
   const prior = priorSnapshot?.oee
 
   const hasProductionData =
     display.goodCount + display.rejectCount > 0 || display.downtimeMin > 0
+  const tone = hasProductionData ? oeeSurfaceTone(oee.oeePct, connectionState) : 'neutral'
 
   const lossBarData = useMemo(
     () =>
@@ -141,7 +146,7 @@ export function ModernKpiHero({
         </Alert>
       ) : null}
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-        <Paper withBorder p="md" radius="md">
+        <WidgetSurface tone={tone} padding="md" radius="md">
           <Stack gap="md" align="center">
             <GaugeRing
               value={oee.oeePct}
@@ -162,12 +167,13 @@ export function ModernKpiHero({
               <FactorWithDelta value={oee.qualityPct} prior={prior?.qualityPct} label="Q" />
             </SimpleGrid>
           </Stack>
-          <Text size="xs" c="dimmed" tt="uppercase" fw={700} mt="md" mb={6}>
-            OEE loss minutes (A / P / Q)
+          <Divider mt="md" />
+          <Text size="xs" c="dimmed" tt="uppercase" fw={700} mt="xs" mb={6}>
+            OEE loss minutes
           </Text>
           {lossBarData.length > 0 ? (
             <BarChart
-              h={56}
+              h={64}
               data={lossBarData}
               dataKey="label"
               type="stacked"
@@ -178,6 +184,8 @@ export function ModernKpiHero({
                 { name: 'Q', color: 'grape.6' },
               ]}
               withTooltip
+              withLegend
+              legendProps={{ verticalAlign: 'bottom', height: 28 }}
               valueFormatter={(v) => formatDurationMinutes(v)}
             />
           ) : (
@@ -185,9 +193,9 @@ export function ModernKpiHero({
               No OEE loss data in range
             </Text>
           )}
-        </Paper>
+        </WidgetSurface>
 
-        <Paper withBorder p="md" radius="md">
+        <WidgetSurface tone="neutral" padding="md" radius="md">
           <Stack gap="lg">
             <SimpleGrid cols={2} spacing="md">
               <Stack gap="md" align="center">
@@ -223,6 +231,8 @@ export function ModernKpiHero({
               )}
             </SimpleGrid>
 
+            <Divider />
+
             <SimpleGrid cols={hideTeep ? 2 : 3} spacing="md">
               {!hideTeep ? (
                 <StatCell
@@ -247,34 +257,37 @@ export function ModernKpiHero({
             </SimpleGrid>
 
             {reliability || display.downtimeMin > 0 ? (
-              <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="md">
-                {display.uptimeMin != null && display.uptimeMin > 0 ? (
-                  <StatCell label="Uptime" value={formatDurationMinutes(display.uptimeMin)} helpId="uptimeMin" />
-                ) : null}
-                <StatCell
-                  label="Downtime"
-                  value={formatDurationMinutes(display.downtimeMin)}
-                  helpId="downtimeMin"
-                />
-                {planned != null && unplanned != null ? (
+              <>
+                <Divider />
+                <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="md">
+                  {display.uptimeMin != null && display.uptimeMin > 0 ? (
+                    <StatCell label="Uptime" value={formatDurationMinutes(display.uptimeMin)} helpId="uptimeMin" />
+                  ) : null}
                   <StatCell
-                    label="Planned / Unplanned"
-                    value={`${formatDurationMinutes(planned)} / ${formatDurationMinutes(unplanned)}`}
-                    helpId="plannedDowntimeMin"
+                    label="Downtime"
+                    value={formatDurationMinutes(display.downtimeMin)}
+                    helpId="downtimeMin"
                   />
-                ) : null}
-                {reliability ? (
-                  <>
-                    <StatCell label="MTTR" value={`${reliability.mttrMin.toFixed(1)}m`} helpId="mttrMin" />
-                    <StatCell label="Stops/hr" value={reliability.stopsPerHour.toFixed(2)} helpId="stopsPerHour" />
-                  </>
-                ) : null}
-              </SimpleGrid>
+                  {planned != null && unplanned != null ? (
+                    <StatCell
+                      label="Planned / Unplanned"
+                      value={`${formatDurationMinutes(planned)} / ${formatDurationMinutes(unplanned)}`}
+                      helpId="plannedDowntimeMin"
+                    />
+                  ) : null}
+                  {reliability ? (
+                    <>
+                      <StatCell label="MTTR" value={`${reliability.mttrMin.toFixed(1)}m`} helpId="mttrMin" />
+                      <StatCell label="Stops/hr" value={reliability.stopsPerHour.toFixed(2)} helpId="stopsPerHour" />
+                    </>
+                  ) : null}
+                </SimpleGrid>
+              </>
             ) : null}
 
             {footer}
           </Stack>
-        </Paper>
+        </WidgetSurface>
       </SimpleGrid>
     </Stack>
   )
@@ -283,8 +296,12 @@ export function ModernKpiHero({
 export function ModernKpiHeroSkeleton() {
   return (
     <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-      <Paper withBorder p="md" radius="md" h={280} />
-      <Paper withBorder p="md" radius="md" h={280} />
+      <WidgetSurface padding="md" radius="md" style={{ height: 280 }}>
+        <div />
+      </WidgetSurface>
+      <WidgetSurface padding="md" radius="md" style={{ height: 280 }}>
+        <div />
+      </WidgetSurface>
     </SimpleGrid>
   )
 }

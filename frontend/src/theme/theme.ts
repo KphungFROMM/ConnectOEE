@@ -21,4 +21,12 @@ export const theme = createTheme({
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   defaultRadius: 'md',
   headings: { fontWeight: '600' },
+  // Mantine Select right section defaults to pointer-events: none; restore clicks on the clear (X) button.
+  components: {
+    InputClearButton: {
+      styles: {
+        root: { pointerEvents: 'all' },
+      },
+    },
+  },
 })

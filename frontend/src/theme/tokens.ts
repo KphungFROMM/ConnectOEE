@@ -1,12 +1,23 @@
 // ConnectOEE design tokens derived from docs/01-product-overview-ux.md.
 // Neutral surfaces + single blue accent + consistent industrial status colors.
 
-export const statusColors = {
+/** Shipped defaults — Admin → Appearance can override the live `statusColors` map. */
+export const defaultStatusColors = {
   running: '#2E9E5B', // running / good / connected
   warning: '#E0A800', // warning / stale / reduced speed
   fault: '#D64545', // fault / stopped / disconnected
   idle: '#8A929E', // idle / planned-down / neutral
 } as const
+
+export type StatusColorKey = keyof typeof defaultStatusColors
+
+/** Live status palette (mutated by AppearanceProvider). Prefer reading this at use/render time. */
+export const statusColors: Record<StatusColorKey, string> = {
+  running: defaultStatusColors.running,
+  warning: defaultStatusColors.warning,
+  fault: defaultStatusColors.fault,
+  idle: defaultStatusColors.idle,
+}
 
 export const lightTheme = {
   canvas: '#FFFFFF',
@@ -38,6 +49,29 @@ export const darkTheme = {
   sectionLabel: '#9097A1',
 } as const
 
+/** High-contrast wall / kiosk floor monitors (10 ft readability). */
+export const wallTheme = {
+  canvas: '#0B0D10',
+  surface: '#161A20',
+  surfaceElevated: '#1E242C',
+  border: '#343B46',
+  textPrimary: '#F0F2F5',
+  textMuted: '#A0A8B4',
+  shadowHero: '0 4px 24px rgba(0,0,0,0.35)',
+  shadowTile: '0 2px 12px rgba(0,0,0,0.22)',
+  typeRamp: { hero: 56, kpi: 40, label: 14, caption: 12 },
+} as const
+
+/** CSS custom properties injected for wall boards (see widgetTheme). */
+export const wallCssVars = {
+  '--coee-wall-canvas': wallTheme.canvas,
+  '--coee-wall-surface': wallTheme.surface,
+  '--coee-wall-surface-elevated': wallTheme.surfaceElevated,
+  '--coee-wall-border': wallTheme.border,
+  '--coee-wall-shadow-hero': wallTheme.shadowHero,
+  '--coee-wall-shadow-tile': wallTheme.shadowTile,
+} as const
+
 export type ConnectionStatus =
   | 'connected'
   | 'connecting'
@@ -45,17 +79,18 @@ export type ConnectionStatus =
   | 'disconnected'
   | 'faulted'
 
+/** Live connection → status color map (kept in sync by AppearanceProvider). */
 export const connectionColor: Record<ConnectionStatus, string> = {
-  connected: statusColors.running,
-  connecting: statusColors.warning,
-  stale: statusColors.warning,
-  disconnected: statusColors.fault,
-  faulted: statusColors.fault,
+  connected: defaultStatusColors.running,
+  connecting: defaultStatusColors.warning,
+  stale: defaultStatusColors.warning,
+  disconnected: defaultStatusColors.fault,
+  faulted: defaultStatusColors.fault,
 }
 
-/** Fixed identity colors for OEE factors — same metric, same color everywhere. */
+/** Shipped defaults for OEE factor identity — overridden at runtime via Admin → Appearance. */
 export const oeeFactorColors = {
-  oee: { hex: statusColors.running, mantine: 'teal.6' },
+  oee: { hex: defaultStatusColors.running, mantine: 'teal.6' },
   availability: { hex: lightTheme.primary, mantine: 'blue.6' },
   performance: { hex: '#6366F1', mantine: 'indigo.5' },
   quality: { hex: '#9333EA', mantine: 'grape.6' },

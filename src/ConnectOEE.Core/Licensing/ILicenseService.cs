@@ -11,10 +11,14 @@ public interface ILicenseService
 
     int MaxPlants { get; }
     int MaxLines { get; }
-    bool RockwellDriverEnabled { get; }
+    /// <summary>Full industrial PLC driver suite (Rockwell, Modbus, OPC UA, …). Trial is Mock-only.</summary>
+    bool PlcDriversEnabled { get; }
     bool PdfReportsEnabled { get; }
     bool ScheduledReportsEnabled { get; }
     int MaxKioskDashboards { get; }
+
+    string MachineIdDisplay { get; }
+    string? LastActivationError { get; }
 
     bool ValidateAndActivate(string? licenseKey);
 }

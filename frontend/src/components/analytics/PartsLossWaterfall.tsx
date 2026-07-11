@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Box } from '@mantine/core'
 import { WaterfallChart } from '../widgets/charts/WaterfallChart'
-import { oeeFactorColors } from '../../theme/tokens'
+import { getFactorColors } from '../../theme/factorColorsRuntime'
 import type { KpiSnapshot } from '../../lib/historian'
 import type { ProductionPartsLoss } from '../../lib/partsLoss'
 import { AnalyticsEmpty } from './AnalyticsEmpty'
@@ -16,6 +16,7 @@ export function PartsLossWaterfall({ snapshot, partsLoss }: Props) {
 
   const { steps, max } = useMemo(() => {
     if (!loss || !snapshot) return { steps: [], max: 1 }
+    const colors = getFactorColors()
     const start = Math.max(
       loss.maxPossibleParts,
       loss.partsCouldHaveMade,
@@ -29,10 +30,10 @@ export function PartsLossWaterfall({ snapshot, partsLoss }: Props) {
       max: start,
       steps: [
         { name: 'Start', value: start, fill: '#8A929E' },
-        { name: 'A', value: loss.partsLostAvailability, fill: oeeFactorColors.availability.hex },
-        { name: 'P', value: loss.partsLostPerformance, fill: oeeFactorColors.performance.hex },
-        { name: 'Q', value: loss.partsLostQuality, fill: oeeFactorColors.quality.hex },
-        { name: 'OEE', value: snapshot.goodCount, fill: oeeFactorColors.oee.hex },
+        { name: 'A', value: loss.partsLostAvailability, fill: colors.availability.hex },
+        { name: 'P', value: loss.partsLostPerformance, fill: colors.performance.hex },
+        { name: 'Q', value: loss.partsLostQuality, fill: colors.quality.hex },
+        { name: 'OEE', value: snapshot.goodCount, fill: colors.oee.hex },
       ],
     }
   }, [loss, snapshot])

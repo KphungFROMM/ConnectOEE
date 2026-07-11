@@ -111,10 +111,17 @@ public class UsersController : ControllerBase
         var user = await _userManager.FindByIdAsync(id.ToString());
         if (user is null) return NotFound();
 
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        var result = await _userManager.ResetPasswordAsync(user, token, req.Password);
-        if (!result.Succeeded)
-            return BadRequest(new { message = string.Join("; ", result.Errors.Select(e => e.Description)) });
+        // Admin reset: set password directly (avoids depending solely on reset-token providers).
+        if (await _userManager.HasPasswordAsync(user))
+        {
+            var remove = await _userManager.RemovePasswordAsync(user);
+            if (!remove.Succeeded)
+                return BadRequest(new { message = string.Join("; ", remove.Errors.Select(e => e.Description)) });
+        }
+
+        var add = await _userManager.AddPasswordAsync(user, req.Password);
+        if (!add.Succeeded)
+            return BadRequest(new { message = string.Join("; ", add.Errors.Select(e => e.Description)) });
 
         user.MustChangePassword = false;
         await _userManager.UpdateAsync(user);

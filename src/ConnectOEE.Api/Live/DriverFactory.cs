@@ -99,13 +99,43 @@ public class DriverFactory
 
         foreach (var conn in connections)
         {
-            if (conn.DriverType == DriverType.RockwellEthernetIp && !string.IsNullOrWhiteSpace(conn.Endpoint))
+            if (conn.DriverType.IsRockwell() && !string.IsNullOrWhiteSpace(conn.Endpoint))
             {
                 var sigs = bindingsByConn.TryGetValue(conn.Id, out var s) ? s : new List<RockwellTagBinding>();
                 var ctrls = controlsByConn.TryGetValue(conn.Id, out var c) ? c : new List<RockwellControlBinding>();
-                var opts = new RockwellConnectionOptions(conn.Endpoint!.Trim(), conn.Path, TimeoutMs: 5000, ReadCacheMs: Math.Max(0, conn.PollIntervalMs / 4));
-                var driver = new RockwellDriver(opts, sigs, ctrls, _loggerFactory.CreateLogger<RockwellDriver>());
+                var opts = new RockwellConnectionOptions(
+                    conn.Endpoint!.Trim(),
+                    conn.Path,
+                    PlcKind: RockwellDriver.PlcKindFor(conn.DriverType),
+                    TimeoutMs: 5000,
+                    ReadCacheMs: Math.Max(0, conn.PollIntervalMs / 4));
+                var driver = new RockwellDriver(
+                    opts, sigs, ctrls, _loggerFactory.CreateLogger<RockwellDriver>(), conn.DriverType);
                 var machineIds = sigs.Select(x => x.MachineId).Concat(ctrls.Select(x => x.MachineId)).Distinct().ToList();
+                drivers.Add(new DriverRegistry.ActiveDriver(conn.Id, conn.Name, driver, machineIds));
+                foreach (var id in machineIds) covered.Add(id);
+            }
+            else if (conn.DriverType == DriverType.ModbusTcp && !string.IsNullOrWhiteSpace(conn.Endpoint))
+            {
+                var rockwellSigs = bindingsByConn.TryGetValue(conn.Id, out var s) ? s : new List<RockwellTagBinding>();
+                var sigs = rockwellSigs
+                    .Select(x => new ModbusTagBinding(x.MachineId, x.LineId, x.Role, x.TagPath, x.DataType))
+                    .ToList();
+                var opts = ModbusTcpDriver.ParseEndpoint(conn.Endpoint!.Trim(), conn.Path, timeoutMs: 5000);
+                var driver = new ModbusTcpDriver(opts, sigs, _loggerFactory.CreateLogger<ModbusTcpDriver>());
+                var machineIds = sigs.Select(x => x.MachineId).Distinct().ToList();
+                drivers.Add(new DriverRegistry.ActiveDriver(conn.Id, conn.Name, driver, machineIds));
+                foreach (var id in machineIds) covered.Add(id);
+            }
+            else if (conn.DriverType == DriverType.OpcUa && !string.IsNullOrWhiteSpace(conn.Endpoint))
+            {
+                var rockwellSigs = bindingsByConn.TryGetValue(conn.Id, out var s) ? s : new List<RockwellTagBinding>();
+                var sigs = rockwellSigs
+                    .Select(x => new OpcUaTagBinding(x.MachineId, x.LineId, x.Role, x.TagPath, x.DataType))
+                    .ToList();
+                var opts = new OpcUaConnectionOptions(OpcUaDriver.NormalizeEndpoint(conn.Endpoint!), TimeoutMs: 8000);
+                var driver = new OpcUaDriver(opts, sigs, _loggerFactory.CreateLogger<OpcUaDriver>());
+                var machineIds = sigs.Select(x => x.MachineId).Distinct().ToList();
                 drivers.Add(new DriverRegistry.ActiveDriver(conn.Id, conn.Name, driver, machineIds));
                 foreach (var id in machineIds) covered.Add(id);
             }

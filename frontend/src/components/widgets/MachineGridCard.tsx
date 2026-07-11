@@ -1,24 +1,89 @@
 import { Badge, Card, Group, RingProgress, Stack, Text } from '@mantine/core'
 import type { MachineSnapshot } from '../../lib/liveHub'
 import { formatDurationMinutes } from '../../lib/formatDuration'
-import { oeeColor, stateColor, fmtNumber } from './common'
+import { oeeExplorerHexColor, statusSurfaceTone, stateColor, fmtNumber } from './common'
+import { toneSurfaceStyle } from './design/widgetTheme'
 import { RingGaugeLabel } from './charts/RingGaugeLabel'
+
+export type MachineCardStyle = 'default' | 'performance'
 
 export function MachineGridCard({
   snapshot,
   lineName,
   compact = false,
+  interactive = true,
+  cardStyle = 'default',
 }: {
   snapshot: MachineSnapshot
   lineName?: string
   compact?: boolean
+  /** Set false when the card isn't wrapped in a click handler (e.g. static preview). */
+  interactive?: boolean
+  /** performance = MachineMetrics-style band + OEE + duration + job */
+  cardStyle?: MachineCardStyle
 }) {
   const color = stateColor(snapshot.state)
   const oee = snapshot.oeePct ?? 0
+  const oeeHex = oeeExplorerHexColor(oee, snapshot.connectionState) ?? color
+  const tone = statusSurfaceTone(snapshot.state, snapshot.connectionState)
+  const toneStyle = toneSurfaceStyle(tone)
+  const hoverClass = interactive ? 'hoverLift' : undefined
+  const job =
+    snapshot.activeRecipeName || snapshot.activeRecipeCode || snapshot.downtimeReasonText || null
+  const statusDuration =
+    snapshot.state === 'Running' || snapshot.state === 'Idle'
+      ? formatDurationMinutes(snapshot.uptimeMin ?? 0)
+      : formatDurationMinutes(snapshot.downtimeMin ?? 0)
+
+  if (cardStyle === 'performance') {
+    return (
+      <Card
+        withBorder
+        padding="sm"
+        radius="md"
+        className={hoverClass}
+        style={{
+          ...toneStyle,
+          borderTop: `5px solid ${color}`,
+          minHeight: compact ? 88 : 110,
+        }}
+      >
+        <Group justify="space-between" wrap="nowrap" mb={4}>
+          <Text fw={700} size="sm" truncate>
+            {snapshot.machineName}
+          </Text>
+          <Badge size="xs" variant="filled" style={{ backgroundColor: color }}>
+            {snapshot.state}
+          </Badge>
+        </Group>
+        <Group justify="space-between" align="flex-end" wrap="nowrap">
+          <Text size={compact ? 'xl' : '1.75rem'} fw={800} lh={1} c={oeeHex}>
+            {oee.toFixed(0)}%
+          </Text>
+          <Stack gap={0} align="flex-end">
+            <Text size="xs" c="dimmed">
+              {statusDuration}
+            </Text>
+            {job ? (
+              <Text size="xs" fw={600} truncate maw={120}>
+                {job}
+              </Text>
+            ) : null}
+          </Stack>
+        </Group>
+      </Card>
+    )
+  }
 
   if (compact) {
     return (
-      <Card withBorder padding="sm" radius="md" style={{ borderLeft: `4px solid ${color}` }}>
+      <Card
+        withBorder
+        padding="sm"
+        radius="md"
+        className={hoverClass}
+        style={{ ...toneStyle, borderLeft: `4px solid ${color}` }}
+      >
         <Group justify="space-between" wrap="nowrap">
           <Text fw={600} size="sm" truncate>
             {snapshot.machineName}
@@ -28,7 +93,7 @@ export function MachineGridCard({
           </Badge>
         </Group>
         <Group justify="space-between" mt={6}>
-          <Text size="lg" fw={800} c={oeeColor()}>
+          <Text size="lg" fw={800} c={oeeHex}>
             {oee.toFixed(0)}%
           </Text>
           <Text size="xs" c="dimmed">
@@ -39,7 +104,13 @@ export function MachineGridCard({
     )
   }
   return (
-    <Card withBorder padding="md" radius="md" style={{ borderLeft: `4px solid ${color}`, minHeight: 120 }}>
+    <Card
+      withBorder
+      padding="md"
+      radius="md"
+      className={hoverClass}
+      style={{ ...toneStyle, borderLeft: `4px solid ${color}`, minHeight: 120 }}
+    >
       <Group justify="space-between" mb={4} wrap="nowrap">
         <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
           <span
@@ -48,6 +119,7 @@ export function MachineGridCard({
               height: 10,
               borderRadius: '50%',
               backgroundColor: color,
+              boxShadow: `0 0 6px ${color}`,
               flexShrink: 0,
             }}
           />
@@ -71,9 +143,10 @@ export function MachineGridCard({
           size={52}
           thickness={6}
           roundCaps
-          sections={[{ value: Math.min(100, oee), color: oeeColor() }]}
+          rootColor="var(--mantine-color-default-border)"
+          sections={[{ value: Math.min(100, oee), color: oeeHex }]}
           label={
-            <RingGaugeLabel size="xs" color={oeeColor()}>
+            <RingGaugeLabel size="xs" color={oeeHex}>
               {oee.toFixed(0)}
             </RingGaugeLabel>
           }

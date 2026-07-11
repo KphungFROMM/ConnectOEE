@@ -8,6 +8,7 @@ using ConnectOEE.Drivers;
 using ConnectOEE.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ConnectOEE.Api.Controllers;
@@ -25,12 +26,18 @@ public class TagsController : ControllerBase
     private readonly ConnectOeeDbContext _db;
     private readonly IAuditService _audit;
     private readonly TagBrowseService _browse;
+    private readonly IHubContext<LiveHub> _hub;
 
-    public TagsController(ConnectOeeDbContext db, IAuditService audit, TagBrowseService browse)
+    public TagsController(
+        ConnectOeeDbContext db,
+        IAuditService audit,
+        TagBrowseService browse,
+        IHubContext<LiveHub> hub)
     {
         _db = db;
         _audit = audit;
         _browse = browse;
+        _hub = hub;
     }
 
     public record SignalDto(Guid Id, string Name, string Role, string ExpectedType, string? Unit,
@@ -238,7 +245,15 @@ public class TagsController : ControllerBase
         if (driver is null || !driver.SupportsBrowsing)
             return Ok(new BrowseResult(false, driverType.ToString(), Array.Empty<BrowseTag>()));
 
-        var tags = await driver.BrowseAsync(ct);
+        var progress = new Progress<BrowseProgress>(p =>
+        {
+            _ = _hub.Clients.Group(LiveHub.BrowseGroup(connectionId)).SendAsync(
+                "tagBrowseProgress",
+                new { connectionId, percent = p.Percent, message = p.Message },
+                CancellationToken.None);
+        });
+
+        var tags = await driver.BrowseAsync(ct, progress);
         return Ok(new BrowseResult(true, driverType.ToString(), tags));
     }
 

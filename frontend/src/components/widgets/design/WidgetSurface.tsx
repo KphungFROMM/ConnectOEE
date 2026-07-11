@@ -1,12 +1,14 @@
 import { Card } from '@mantine/core'
 import type { CSSProperties, ReactNode } from 'react'
-import type { SurfaceTone } from './widgetTheme'
-import { toneSurfaceStyle } from './widgetTheme'
+import type { SurfaceElevation, SurfaceTone } from './widgetTheme'
+import { toneSurfaceStyle, wallShadow } from './widgetTheme'
 
 export function WidgetSurface({
   children,
   tone = 'neutral',
   wallBoard,
+  calmMuted,
+  elevation = 'default',
   padding = 'md',
   radius = 'md',
   withBorder = true,
@@ -15,12 +17,14 @@ export function WidgetSurface({
   children: ReactNode
   tone?: SurfaceTone
   wallBoard?: boolean
+  calmMuted?: boolean
+  elevation?: SurfaceElevation
   padding?: string
   radius?: string | number
   withBorder?: boolean
   style?: CSSProperties
 }) {
-  const toneStyle = toneSurfaceStyle(tone)
+  const toneStyle = toneSurfaceStyle(tone, { wallBoard, calmMuted, elevation })
 
   return (
     <Card
@@ -28,18 +32,24 @@ export function WidgetSurface({
       radius={wallBoard ? 'lg' : radius}
       padding={padding}
       h="100%"
+      bg={wallBoard ? 'transparent' : undefined}
       style={{
         overflow: 'hidden',
         boxShadow: wallBoard
-          ? '0 2px 12px rgba(0,0,0,0.08)'
-          : '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)',
+          ? wallShadow(elevation)
+          : elevation === 'hero'
+            ? '0 2px 8px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.08)'
+            : '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)',
         ...toneStyle,
-        ...(wallBoard
+        ...(wallBoard && elevation === 'hero'
           ? {
               background:
-                tone !== 'neutral'
-                  ? toneStyle.background
-                  : 'linear-gradient(180deg, color-mix(in srgb, var(--mantine-color-gray-5) 10%, var(--mantine-color-body)) 0%, var(--mantine-color-body) 50%)',
+                typeof toneStyle.background === 'string'
+                  ? toneStyle.background.replace(
+                      /var\(--coee-wall-surface[^)]*\)/g,
+                      'var(--coee-wall-surface-elevated, #1E242C)',
+                    )
+                  : toneStyle.background,
             }
           : {}),
         ...style,

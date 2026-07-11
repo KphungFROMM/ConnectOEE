@@ -15,4 +15,5 @@ public sealed class LicenseState
     public string? LicenseHolder { get; set; }
     public DateTime? ActivatedUtc { get; set; }
     public DateTime? ExpiresUtc { get; set; }
+    public string? MachineIdHash { get; set; }
 }

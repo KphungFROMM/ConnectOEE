@@ -131,8 +131,10 @@ export function OperatorScopeBar({
           placeholder="All lines"
           value={filters.lineId}
           onChange={(v) => onFiltersChange({ lineId: v, machineId: null })}
+          onClear={() => onFiltersChange({ lineId: null, machineId: null })}
           data={lineOptions}
           clearable
+          rightSectionPointerEvents="all"
           disabled={lineOptions.length === 0}
         />
         <Select
@@ -142,8 +144,10 @@ export function OperatorScopeBar({
           placeholder="All stations"
           value={filters.machineId}
           onChange={(v) => onFiltersChange({ machineId: v })}
+          onClear={() => onFiltersChange({ machineId: null })}
           data={machineOptions}
           clearable
+          rightSectionPointerEvents="all"
           disabled={!filters.lineId}
         />
       </Group>

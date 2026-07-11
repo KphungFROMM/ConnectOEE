@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="Plant Overview">
+  <rect width="640" height="360" fill="#F4F5F7"/>
+  <rect x="16" y="16" width="608" height="70" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="36" y="36" width="80" height="30" rx="6" fill="#E8F0FE"/>
+  <rect x="132" y="36" width="80" height="30" rx="6" fill="#D1FAE5"/>
+  <rect x="228" y="36" width="80" height="30" rx="6" fill="#E8F0FE"/>
+  <rect x="324" y="36" width="80" height="30" rx="6" fill="#E8F0FE"/>
+  <rect x="16" y="98" width="608" height="28" rx="6" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <circle cx="40" cy="112" r="6" fill="#2E9E5B"/>
+  <circle cx="120" cy="112" r="6" fill="#2E9E5B"/>
+  <circle cx="200" cy="112" r="6" fill="#E0A800"/>
+  <circle cx="280" cy="112" r="6" fill="#2E9E5B"/>
+  <rect x="16" y="138" width="300" height="90" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="328" y="138" width="296" height="90" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="16" y="240" width="400" height="104" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="36" y="260" width="110" height="64" rx="8" fill="#F4F5F7"/>
+  <rect x="160" y="260" width="110" height="64" rx="8" fill="#F4F5F7"/>
+  <rect x="284" y="260" width="110" height="64" rx="8" fill="#F4F5F7"/>
+  <rect x="428" y="240" width="196" height="104" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="448" y="262" width="156" height="12" rx="3" fill="#D1FAE5"/>
+  <rect x="448" y="286" width="130" height="12" rx="3" fill="#E8F0FE"/>
+  <rect x="448" y="310" width="100" height="12" rx="3" fill="#E3E5E8"/>
+</svg>

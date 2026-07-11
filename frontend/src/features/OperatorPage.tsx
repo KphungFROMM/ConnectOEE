@@ -43,6 +43,8 @@ export function OperatorPage() {
     unassigned,
     unassignedByMachine,
     machineNameById,
+    lineNameById,
+    lineNameByMachineId,
     eventsLoading,
     summary,
     plantOptions,
@@ -50,6 +52,7 @@ export function OperatorPage() {
     machineOptions,
     plantId,
     refreshUnassigned,
+    tree,
   } = useOperatorStations(filters, user, snapshots)
 
   useEffect(() => {
@@ -90,6 +93,7 @@ export function OperatorPage() {
     for (const g of gridGroups) {
       if (g.lineId !== selectedStation.lineId) continue
       for (const m of g.machines) {
+        const meta = stations.find((s) => s.machineId === m.machineId)
         rows.push({
           machineId: m.machineId,
           machineName: m.snapshot.machineName,
@@ -99,32 +103,47 @@ export function OperatorPage() {
           plantId: selectedStation.plantId,
           plantName: g.plantName,
           snapshot: m.snapshot,
+          isLineOutput: meta?.isLineOutput,
         })
       }
     }
     return rows
-  }, [gridGroups, selectedStation])
+  }, [gridGroups, selectedStation, stations])
 
-  // Sync URL machine param with scope filters + line context
+  const outputMachineIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const s of stations) {
+      if (s.isLineOutput) ids.add(s.machineId)
+    }
+    return ids
+  }, [stations])
+
+  const urlMachineLineId = useMemo(() => {
+    if (!machineParam) return null
+    const snap = snapshots.find((s) => s.machineId === machineParam)
+    if (snap?.lineId) return snap.lineId
+    for (const p of tree) {
+      for (const d of p.departments) {
+        for (const l of d.lines) {
+          if (l.machines.some((m) => m.id === machineParam)) return l.id
+        }
+      }
+    }
+    return null
+  }, [machineParam, snapshots, tree])
+
+  // Sync URL ?machine= → filters. Depend on stable line id string, not snapshot array identity,
+  // so SignalR ticks cannot bounce Select values during clear.
   useEffect(() => {
-    if (!machineParam) return
-    const station = stations.find((s) => s.machineId === machineParam)
-    if (!station) return
+    if (!machineParam || !urlMachineLineId) return
     setFilters((f) => {
-      if (f.lineId === station.lineId && f.machineId === machineParam) return f
-      return { ...f, lineId: station.lineId, machineId: machineParam }
+      if (f.lineId === urlMachineLineId && f.machineId === machineParam) return f
+      return { ...f, lineId: urlMachineLineId, machineId: machineParam }
     })
-  }, [machineParam, stations])
+  }, [machineParam, urlMachineLineId])
 
   const view = selectedStation ? 'detail' : 'grid'
   const effectiveMachineId = machineParam ?? filters.machineId
-
-  useEffect(() => {
-    if (machineParam || treeLoading || stations.length === 0) return
-    if (stations.length === 1) {
-      setSearchParams({ machine: stations[0].machineId }, { replace: true })
-    }
-  }, [machineParam, treeLoading, stations, setSearchParams])
 
   const [assignTarget, setAssignTarget] = useState<DowntimeEvent | null>(null)
   const [productPickOpen, setProductPickOpen] = useState(false)
@@ -203,17 +222,23 @@ export function OperatorPage() {
   }
 
   function backToGrid() {
-    setSearchParams({})
+    setSearchParams({}, { replace: true })
     setFilters((f) => ({ ...f, machineId: null }))
   }
 
   function patchFilters(patch: Partial<OperatorFilters>) {
-    setFilters((f) => ({ ...f, ...patch }))
-    if (patch.machineId) {
-      setSearchParams({ machine: patch.machineId })
-    } else if (patch.machineId === null || patch.lineId === null) {
-      setSearchParams({})
+    const clearingMachine = Object.prototype.hasOwnProperty.call(patch, 'machineId') && !patch.machineId
+    const clearingLine = Object.prototype.hasOwnProperty.call(patch, 'lineId') && !patch.lineId
+    const nextMachine = patch.machineId
+
+    // Clear URL before/with filters so the machineParam sync effect cannot bounce the selection back.
+    if (nextMachine) {
+      setSearchParams({ machine: nextMachine }, { replace: true })
+    } else if (clearingMachine || clearingLine) {
+      setSearchParams({}, { replace: true })
     }
+
+    setFilters((f) => ({ ...f, ...patch }))
   }
 
   const queueMode = effectiveMachineId ? 'machine' : 'line'
@@ -268,12 +293,16 @@ export function OperatorPage() {
           onSelectMachine={openMachine}
           loading={treeLoading}
           compact={wallDisplay}
+          outputMachineIds={outputMachineIds}
         />
       )}
 
       <ReasonQueue
         events={unassigned}
         machineNameById={machineNameById}
+        lineNameById={lineNameById}
+        lineNameByMachineId={lineNameByMachineId}
+        showLine={!filters.lineId}
         loading={eventsLoading}
         onAssign={setAssignTarget}
         pendingReviewCodes={pendingCodes}

@@ -27,19 +27,27 @@ public class PlcController : ControllerBase
     private readonly IAuditService _audit;
     private readonly DriverRegistry _registry;
     private readonly ILicenseService _license;
+    private readonly TagBrowseService _browse;
 
-    public PlcController(ConnectOeeDbContext db, IAuditService audit, DriverRegistry registry, ILicenseService license)
+    public PlcController(
+        ConnectOeeDbContext db,
+        IAuditService audit,
+        DriverRegistry registry,
+        ILicenseService license,
+        TagBrowseService browse)
     {
         _db = db;
         _audit = audit;
         _registry = registry;
         _license = license;
+        _browse = browse;
     }
 
     public record ConnectionDto(Guid Id, string Name, string DriverType, string? Endpoint, string? Path,
         int PollIntervalMs, bool Enabled, Guid? LineId, int TagCount);
     public record SaveConnectionRequest(string Name, string DriverType, string? Endpoint, string? Path,
         int? PollIntervalMs, bool? Enabled, Guid? LineId);
+    public record TestConnectionRequest(string DriverType, string? Endpoint, string? Path);
 
     [HttpGet("connections")]
     public async Task<ActionResult<IEnumerable<ConnectionDto>>> List()
@@ -75,6 +83,25 @@ public class PlcController : ControllerBase
         await _db.SaveChangesAsync();
         await _audit.LogAsync("plc.create", User.GetUserId(), User.GetUserName(), entityType: nameof(PlcConnection), entityId: conn.Id.ToString(), details: new { conn.Name, conn.Endpoint });
         return Ok(new ConnectionDto(conn.Id, conn.Name, conn.DriverType.ToString(), conn.Endpoint, conn.Path, conn.PollIntervalMs, conn.Enabled, conn.LineId, 0));
+    }
+
+    /// <summary>
+    /// Probe a connection from form fields without saving. Used by Admin "Test connection".
+    /// </summary>
+    [HttpPost("connections/test")]
+    [HasPermission(PermissionKeys.ManageHierarchy)]
+    public async Task<ActionResult<TagBrowseService.ConnectionTestResult>> Test(
+        [FromBody] TestConnectionRequest req,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req.DriverType))
+            return BadRequest(new { message = "DriverType is required" });
+
+        var rockwell = LicenseEnforcement.CheckRockwellDriver(_license, req.DriverType);
+        if (rockwell is not null) return rockwell;
+
+        var result = await _browse.TestAsync(req.DriverType, req.Endpoint, req.Path, ct);
+        return Ok(result);
     }
 
     [HttpPut("connections/{id:guid}")]

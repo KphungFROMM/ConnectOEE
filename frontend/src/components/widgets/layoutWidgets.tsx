@@ -1,5 +1,6 @@
-import { Anchor, Divider, Image, Paper, Stack, Tabs, Text } from '@mantine/core'
+import { Anchor, Divider, Image, Stack, Tabs, Text } from '@mantine/core'
 import { useEffect, useMemo, useState } from 'react'
+import { IconClock } from '@tabler/icons-react'
 import QRCode from 'qrcode'
 import { Link } from 'react-router-dom'
 import { getDowntime, type DowntimeEvent } from '../../lib/metrics'
@@ -7,6 +8,9 @@ import { readTagValues } from '../../lib/tags'
 import { WidgetFrame } from './common'
 import type { WidgetProps } from './common'
 import { MetricHero } from './design/MetricHero'
+import { StatusMetricTile } from './design/StatusMetricTile'
+import { NestedWidgetHost } from './NestedWidgetHost'
+import { useBuilderNestEdit } from '../../features/builder/BuilderNestEditContext'
 import { usePolling } from './usePolling'
 
 export function TextLabelWidget({ widget }: WidgetProps) {
@@ -59,23 +63,33 @@ export function DividerWidget({ widget }: WidgetProps) {
 
 export function ContainerPanelWidget({ widget, ctx }: WidgetProps) {
   const title = (widget.options.title as string) ?? widget.title ?? 'Panel'
+  const nestEdit = useBuilderNestEdit()
   return (
-    <WidgetFrame title={title} stale={!ctx.hubConnected} tone="info">
-      <Paper withBorder p="sm" radius="md" h="100%" style={{ borderStyle: 'dashed' }}>
-        <Text size="xs" c="dimmed" ta="center">
-          Container — nest widgets in the builder
-        </Text>
-      </Paper>
+    <WidgetFrame title={title} stale={!ctx.hubConnected} tone="info" variant="compact">
+      {nestEdit ? nestEdit.renderNestedEdit(widget.id) : (
+        <NestedWidgetHost parentId={widget.id} ctx={ctx} emptyHint="Container — drop widgets in the builder" />
+      )}
     </WidgetFrame>
   )
 }
 
 export function TabbedPanelWidget({ widget, ctx }: WidgetProps) {
   const tabs = (widget.options.tabs as string[]) ?? ['Tab 1', 'Tab 2']
-  const [active, setActive] = useState(0)
+  const nestEdit = useBuilderNestEdit()
+  const [localActive, setLocalActive] = useState(0)
+  const active = nestEdit ? Number(nestEdit.getActiveTab(widget.id) || '0') : localActive
+  const setActive = (i: number) => {
+    if (nestEdit) nestEdit.setActiveTab(widget.id, String(i))
+    else setLocalActive(i)
+  }
   return (
-    <WidgetFrame title={widget.title ?? 'Tabs'} stale={!ctx.hubConnected}>
-      <Tabs value={String(active)} onChange={(v) => setActive(Number(v))} h="100%">
+    <WidgetFrame title={widget.title ?? 'Tabs'} stale={!ctx.hubConnected} variant="compact">
+      <Tabs
+        value={String(active)}
+        onChange={(v) => setActive(Number(v))}
+        h="100%"
+        style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}
+      >
         <Tabs.List>
           {tabs.map((t, i) => (
             <Tabs.Tab key={`${t}-${i}`} value={String(i)}>
@@ -84,10 +98,22 @@ export function TabbedPanelWidget({ widget, ctx }: WidgetProps) {
           ))}
         </Tabs.List>
         {tabs.map((t, i) => (
-          <Tabs.Panel key={`${t}-${i}`} value={String(i)} pt="xs">
-            <Text size="sm" c="dimmed">
-              {t} content area
-            </Text>
+          <Tabs.Panel
+            key={`${t}-${i}`}
+            value={String(i)}
+            pt="xs"
+            style={{ flex: 1, minHeight: 0, display: active === i ? 'flex' : undefined, flexDirection: 'column' }}
+          >
+            {nestEdit ? (
+              nestEdit.renderNestedEdit(widget.id, String(i))
+            ) : (
+              <NestedWidgetHost
+                parentId={widget.id}
+                tabKey={String(i)}
+                ctx={ctx}
+                emptyHint={`${t} — drop widgets in the builder`}
+              />
+            )}
           </Tabs.Panel>
         ))}
       </Tabs>
@@ -126,21 +152,19 @@ export function ClockDateWidget({ widget, ctx }: WidgetProps) {
       : null
 
   return (
-    <WidgetFrame title={widget.title ?? 'Clock'} stale={!ctx.hubConnected}>
-      <Stack gap={4} justify="center" h="100%">
-        <Text fw={800} size="xl" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {now.toLocaleTimeString()}
-        </Text>
-        <Text size="sm" c="dimmed">
-          {now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
-        </Text>
-        {shiftName ? (
-          <Text size="xs" c="dimmed">
-            {shiftName}
-            {rem != null ? ` · ${Math.floor(rem / 60)}h ${rem % 60}m left` : ''}
-          </Text>
-        ) : null}
-      </Stack>
+    <WidgetFrame title={widget.title ?? 'Clock'} stale={!ctx.hubConnected} variant="default" density={ctx.density}>
+      <StatusMetricTile
+        label={now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+        value={now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        subtitle={
+          shiftName
+            ? `${shiftName}${rem != null ? ` · ${Math.floor(rem / 60)}h ${rem % 60}m left` : ''}`
+            : undefined
+        }
+        color="var(--mantine-color-blue-6)"
+        density={ctx.density}
+        icon={<IconClock size={18} stroke={2} />}
+      />
     </WidgetFrame>
   )
 }

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Anchor, Box, Card, Group, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core'
+import { Anchor, Box, Group, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core'
 import { Link } from 'react-router-dom'
 import type { KpiSnapshot } from '../../lib/historian'
 import type { MachineSnapshot } from '../../lib/liveHub'
@@ -8,9 +8,11 @@ import {
   aggregatePartsLossFromSnapshots,
   type ProductionPartsLoss,
 } from '../../lib/partsLoss'
-import { oeeFactorColors } from '../../theme/tokens'
+import { getFactorColors } from '../../theme/factorColorsRuntime'
+import { statusColors } from '../../theme/tokens'
 import { MetricLabel } from '../help/HelpTrigger'
 import { MetricHero } from '../widgets/design/MetricHero'
+import { WidgetSurface } from '../widgets/design/WidgetSurface'
 
 interface Props {
   snapshots: MachineSnapshot[]
@@ -19,15 +21,19 @@ interface Props {
   preferLive?: boolean
 }
 
-const LOSS_SEGMENTS = [
-  { key: 'partsLostAvailability' as const, label: 'Downtime', color: oeeFactorColors.availability.hex },
-  { key: 'partsLostPerformance' as const, label: 'Slow run', color: oeeFactorColors.performance.hex },
-  { key: 'partsLostQuality' as const, label: 'Rejects', color: oeeFactorColors.quality.hex },
-  { key: 'partsLostBreakdown' as const, label: 'Breakdown', color: '#C0392B' },
-]
+function lossSegments() {
+  const colors = getFactorColors()
+  return [
+    { key: 'partsLostAvailability' as const, label: 'Downtime', color: colors.availability.hex },
+    { key: 'partsLostPerformance' as const, label: 'Slow run', color: colors.performance.hex },
+    { key: 'partsLostQuality' as const, label: 'Rejects', color: colors.quality.hex },
+    { key: 'partsLostBreakdown' as const, label: 'Breakdown', color: statusColors.fault },
+  ]
+}
 
 function LossStackBar({ loss }: { loss: ProductionPartsLoss }) {
-  const total = LOSS_SEGMENTS.reduce((s, seg) => s + loss[seg.key], 0)
+  const segments = lossSegments()
+  const total = segments.reduce((s, seg) => s + loss[seg.key], 0)
   if (total <= 0) {
     return (
       <Text size="sm" c="dimmed">
@@ -47,7 +53,7 @@ function LossStackBar({ loss }: { loss: ProductionPartsLoss }) {
           background: 'var(--mantine-color-gray-2)',
         }}
       >
-        {LOSS_SEGMENTS.map((seg) => {
+        {segments.map((seg) => {
           const value = loss[seg.key]
           if (value <= 0) return null
           const pct = (value / total) * 100
@@ -59,7 +65,7 @@ function LossStackBar({ loss }: { loss: ProductionPartsLoss }) {
         })}
       </Box>
       <Group gap="md" wrap="wrap">
-        {LOSS_SEGMENTS.map((seg) => {
+        {segments.map((seg) => {
           const value = loss[seg.key]
           if (value <= 0) return null
           return (
@@ -123,7 +129,7 @@ export function ExplorerPartsSection({ snapshots, historianSnapshot, analyticsSc
     : `${Math.round(idealRatePph).toLocaleString()} pph`
 
   return (
-    <Card withBorder radius="md" padding="lg">
+    <WidgetSurface tone="neutral" padding="lg" radius="md">
       <Group justify="space-between" mb="md" wrap="wrap">
         <div>
           <Text fw={600}>Production vs expected</Text>
@@ -181,6 +187,6 @@ export function ExplorerPartsSection({ snapshots, historianSnapshot, analyticsSc
         Parts lost this shift
       </Text>
       <LossStackBar loss={loss} />
-    </Card>
+    </WidgetSurface>
   )
 }

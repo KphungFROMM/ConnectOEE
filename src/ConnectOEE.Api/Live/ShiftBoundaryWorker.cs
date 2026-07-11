@@ -1,3 +1,4 @@
+using ConnectOEE.Core;
 using ConnectOEE.Core.Abstractions;
 using ConnectOEE.Core.Oee;
 using ConnectOEE.Infrastructure;
@@ -60,12 +61,23 @@ public class ShiftBoundaryWorker : BackgroundService
             var idealCycle = await IdealCycleResolver.ResolveForLineWindowAsync(
                 db, shift.LineId, shift.StartUtc, shift.EndUtc, ct);
 
-            var good = await db.TsCounts
-                .Where(c => c.LineId == shift.LineId && c.TimestampUtc >= shift.StartUtc && c.TimestampUtc < shift.EndUtc)
-                .SumAsync(c => (long?)c.GoodCount, ct) ?? 0;
-            var reject = await db.TsCounts
-                .Where(c => c.LineId == shift.LineId && c.TimestampUtc >= shift.StartUtc && c.TimestampUtc < shift.EndUtc)
-                .SumAsync(c => (long?)c.RejectCount, ct) ?? 0;
+            var oeeCfg = await db.OeeConfigs.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.LineId == shift.LineId, ct);
+            var machinesBySequence = await db.Machines.AsNoTracking()
+                .Where(m => m.LineId == shift.LineId)
+                .OrderBy(m => m.SequenceIndex)
+                .Select(m => m.Id)
+                .ToListAsync(ct);
+            var topology = LineTopologyResolver.FromConfig(oeeCfg, machinesBySequence);
+
+            var countsQuery = db.TsCounts
+                .Where(c => c.LineId == shift.LineId && c.TimestampUtc >= shift.StartUtc && c.TimestampUtc < shift.EndUtc);
+            if (topology.Topology == LineTopology.Continuous
+                && topology.OutputMachineId is Guid outputId)
+                countsQuery = countsQuery.Where(c => c.MachineId == outputId);
+
+            var good = await countsQuery.SumAsync(c => (long?)c.GoodCount, ct) ?? 0;
+            var reject = await countsQuery.SumAsync(c => (long?)c.RejectCount, ct) ?? 0;
 
             var downtimes = await db.DowntimeEvents
                 .Where(e => e.LineId == shift.LineId && e.StartUtc >= shift.StartUtc && e.StartUtc < shift.EndUtc && e.EndUtc != null)

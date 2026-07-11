@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { notifications } from '@mantine/notifications'
 import { createLiveConnection } from '../../lib/liveHub'
 import {
@@ -14,32 +14,73 @@ import {
 import type { HubConnection } from '@microsoft/signalr'
 import { TAG_MAX_PREVIEW, TAG_POLL_MS } from './tagBrowseUtils'
 
+export interface TagBrowseLoadingProgress {
+  percent: number
+  message: string
+}
+
 export function useTagBrowse(connectionId: string | null) {
   const [browse, setBrowse] = useState<BrowseResult | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState<TagBrowseLoadingProgress | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState('')
   const [selected, setSelected] = useState<BrowseTag | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [values, setValues] = useState<Record<string, TagValueSample>>({})
+  const progressHubRef = useRef<HubConnection | null>(null)
 
-  const loadBrowse = useCallback((id: string) => {
+  const loadBrowse = useCallback(async (id: string) => {
     setLoading(true)
+    setLoadingProgress({ percent: 0, message: 'Starting…' })
     setSelected(null)
     setValues({})
     setScrollTop(0)
-    browseTags(id)
-      .then((r) => {
-        setBrowse(r)
-        setExpanded(new Set(r.tags.filter((t) => t.children.length > 0).map((t) => t.fullPath)))
-        setScrollTop(0)
+
+    let hub: HubConnection | null = null
+    try {
+      hub = createLiveConnection()
+      hub.on('tagBrowseProgress', (payload: { connectionId?: string; percent?: number; message?: string }) => {
+        if (payload?.connectionId && payload.connectionId !== id) return
+        setLoadingProgress({
+          percent: Math.max(0, Math.min(100, payload.percent ?? 0)),
+          message: payload.message?.trim() || 'Loading tags…',
+        })
       })
-      .catch(() => notifications.show({ message: 'Failed to browse tags', color: 'red' }))
-      .finally(() => setLoading(false))
+      await hub.start()
+      await hub.invoke('SubscribeTagBrowse', id)
+      progressHubRef.current = hub
+    } catch {
+      hub = null
+      progressHubRef.current = null
+      setLoadingProgress({ percent: 0, message: 'Discovering tags…' })
+    }
+
+    try {
+      const r = await browseTags(id)
+      setBrowse(r)
+      setExpanded(new Set(r.tags.filter((t) => t.children.length > 0).map((t) => t.fullPath)))
+      setScrollTop(0)
+      setLoadingProgress({ percent: 100, message: r.supportsBrowsing ? `Found ${r.tags.length} item(s)` : 'Ready' })
+    } catch {
+      notifications.show({ message: 'Failed to browse tags', color: 'red' })
+    } finally {
+      setLoading(false)
+      setLoadingProgress(null)
+      try {
+        if (hub) {
+          await hub.invoke('UnsubscribeTagBrowse', id)
+          await hub.stop()
+        }
+      } catch {
+        /* ignore */
+      }
+      progressHubRef.current = null
+    }
   }, [])
 
   useEffect(() => {
-    if (connectionId) loadBrowse(connectionId)
+    if (connectionId) void loadBrowse(connectionId)
     else {
       setBrowse(null)
       setSelected(null)
@@ -47,6 +88,7 @@ export function useTagBrowse(connectionId: string | null) {
       setFilter('')
       setScrollTop(0)
       setExpanded(new Set())
+      setLoadingProgress(null)
     }
   }, [connectionId, loadBrowse])
 
@@ -143,6 +185,7 @@ export function useTagBrowse(connectionId: string | null) {
   return {
     browse,
     loading,
+    loadingProgress,
     expanded,
     filter,
     selected,

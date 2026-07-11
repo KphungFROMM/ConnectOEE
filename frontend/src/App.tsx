@@ -6,7 +6,6 @@ import { DashboardsPage } from './features/DashboardsPage'
 import { PlantExplorerPage } from './features/PlantExplorerPage'
 import { AnalyticsPage } from './features/AnalyticsPage'
 import { ReportsPage } from './features/ReportsPage'
-import { TagBrowserPage } from './features/TagBrowserPage'
 import { OperatorPage } from './features/OperatorPage'
 import { AdminPage } from './features/AdminPage'
 import { WizardPage } from './features/WizardPage'
@@ -17,6 +16,7 @@ import { KioskPage } from './features/KioskPage'
 import { PresentationPage } from './features/PresentationPage'
 import { LoginPage } from './features/LoginPage'
 import { AuthProvider, useAuth } from './lib/auth'
+import { AppearanceProvider } from './lib/AppearanceProvider'
 import { getSetupStatus } from './lib/setup'
 import { Permissions, isOperatorOnly, permissionDeniedPath } from './lib/permissions'
 
@@ -96,6 +96,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <AppearanceProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/wizard" element={<WizardPage />} />
@@ -188,14 +189,7 @@ export default function App() {
               </RequirePermission>
             }
           />
-          <Route
-            path="/tags"
-            element={
-              <RequirePermission permission={Permissions.BrowseTags}>
-                <TagBrowserPage />
-              </RequirePermission>
-            }
-          />
+          <Route path="/tags" element={<Navigate to="/admin?tab=tags" replace />} />
           <Route
             path="/operator"
             element={
@@ -215,6 +209,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<SetupRedirect />} />
       </Routes>
+        </AppearanceProvider>
       </AuthProvider>
     </BrowserRouter>
   )

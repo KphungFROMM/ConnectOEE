@@ -1,5 +1,7 @@
 namespace ConnectOEE.Core.Licensing;
 
+using Connect.Licensing.Core;
+
 /// <summary>
 /// Full-feature license for local development (same pattern as ConnectModbusTools).
 /// Registered automatically in Debug builds.
@@ -15,10 +17,12 @@ public sealed class PersonalLicenseService : ILicenseService
 
     public int MaxPlants => int.MaxValue;
     public int MaxLines => int.MaxValue;
-    public bool RockwellDriverEnabled => true;
+    public bool PlcDriversEnabled => true;
     public bool PdfReportsEnabled => true;
     public bool ScheduledReportsEnabled => true;
     public int MaxKioskDashboards => int.MaxValue;
+    public string MachineIdDisplay => MachineFingerprint.Compute();
+    public string? LastActivationError => null;
 
     public bool ValidateAndActivate(string? licenseKey) => true;
 }

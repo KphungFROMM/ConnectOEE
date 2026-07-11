@@ -2,10 +2,13 @@ import { Badge, Button, Group, Progress, SimpleGrid, Stack, Text } from '@mantin
 import { BarChart, DonutChart, LineChart } from '@mantine/charts'
 import { notifications } from '@mantine/notifications'
 import { useEffect, useMemo, useState } from 'react'
-import { WidgetFrame, fmtNumber, oeeColor, resolveField, formatDurationMinutes, resolveFrameVariant } from './common'
+import { WidgetFrame, fmtNumber, oeeColor, resolveField, formatDurationMinutes, resolveFrameVariant, wallContentLabel } from './common'
 import type { WidgetProps } from './common'
 import { ChartShell, SummaryChip } from './design/ChartShell'
 import { MetricHero } from './design/MetricHero'
+import { PresentationKpi, resolveKpiPresentation } from './design/PresentationKpi'
+import { StatusMetricTile } from './design/StatusMetricTile'
+import { IconClockHour4, IconPlugConnected } from '@tabler/icons-react'
 import { KpiTileWidget } from './tiles'
 import { aggregateSnapshots } from './resolveBindingScope'
 import { resolveScopedField, resolveScopedSnapshot } from './resolveScopedSnapshot'
@@ -23,10 +26,11 @@ export function FieldTileWidget(props: WidgetProps) {
 }
 
 export function CurrentJobBannerWidget({ widget, ctx }: WidgetProps) {
-  const code = ctx.snapshot?.activeRecipeCode
-  const name = ctx.snapshot?.activeRecipeName
-  const cycle = ctx.snapshot?.idealCycleTimeSec
-  const autoCreated = ctx.snapshot?.recipeIsAutoCreated
+  const snap = resolveScopedSnapshot(ctx, widget.binding) ?? ctx.snapshot
+  const code = snap?.activeRecipeCode
+  const name = snap?.activeRecipeName
+  const cycle = snap?.idealCycleTimeSec
+  const autoCreated = snap?.recipeIsAutoCreated
   return (
     <WidgetFrame title={widget.title ?? 'Current Job'} noData={!ctx.snapshot} stale={!ctx.hubConnected}>
       <Stack justify="center" h="100%" gap={4}>
@@ -60,26 +64,25 @@ export function ScrapYieldTileWidget({ widget, ctx }: WidgetProps) {
 
 export function CycleTimeTileWidget({ widget, ctx }: WidgetProps) {
   const isPlant = widget.binding.source === 'plant'
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const s = ctx.snapshot
   const actual = isPlant ? agg.actualCycleTimeSec : s?.actualCycleTimeSec
   const ideal = isPlant ? agg.idealCycleTimeSec : s?.idealCycleTimeSec
   const hasData = isPlant ? ctx.lineSnapshots.length > 0 : actual != null
 
   return (
-    <WidgetFrame title={widget.title ?? 'Cycle Time'} noData={!hasData} stale={!ctx.hubConnected}>
-      <Stack gap={4} justify="center" h="100%">
-        <Text size="30px" fw={800} style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {(actual ?? 0).toFixed(2)}
-          <Text span size="sm" c="dimmed">
-            {' '}
-            s actual
-          </Text>
-        </Text>
-        <Text size="xs" c="dimmed">
-          Ideal {(ideal ?? 0).toFixed(2)}s
-        </Text>
-      </Stack>
+    <WidgetFrame title={widget.title ?? 'Cycle Time'} noData={!hasData} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      <PresentationKpi
+        presentation={resolveKpiPresentation(widget.options.presentation)}
+        value={(actual ?? 0).toFixed(2)}
+        numericValue={actual ?? 0}
+        max={Math.max(ideal ?? 60, actual ?? 60, 1)}
+        unit="s"
+        subtitle={`Ideal ${(ideal ?? 0).toFixed(2)}s`}
+        color="var(--mantine-color-blue-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+      />
     </WidgetFrame>
   )
 }
@@ -88,20 +91,23 @@ export function ThroughputTileWidget({ widget, ctx }: WidgetProps) {
   const rateRaw = resolveScopedField(ctx, widget.binding, 'actualRatePph')
   const rate = typeof rateRaw === 'number' ? rateRaw : Number(rateRaw ?? 0)
   return (
-    <WidgetFrame title={widget.title ?? 'Throughput'} noData={rateRaw == null} stale={!ctx.hubConnected}>
-      <Text size="30px" fw={800} style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {fmtNumber(rate)}
-        <Text span size="sm" c="dimmed">
-          {' '}
-          pph
-        </Text>
-      </Text>
+    <WidgetFrame title={widget.title ?? 'Throughput'} noData={rateRaw == null} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      <PresentationKpi
+        presentation={resolveKpiPresentation(widget.options.presentation)}
+        value={fmtNumber(rate)}
+        numericValue={rate}
+        max={Math.max(rate, 1000)}
+        unit="pph"
+        color="var(--mantine-color-teal-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+      />
     </WidgetFrame>
   )
 }
 
 export function ShiftProgressWidget({ widget, ctx }: WidgetProps) {
-  const snap = ctx.snapshot
+  const snap = resolveScopedSnapshot(ctx, widget.binding) ?? ctx.snapshot
   if (!snap) {
     return (
       <WidgetFrame title={widget.title ?? 'Shift Progress'} noData stale={!ctx.hubConnected}>
@@ -129,30 +135,44 @@ export function ShiftProgressWidget({ widget, ctx }: WidgetProps) {
 
 export function ConnectionStaleWidget({ widget, ctx }: WidgetProps) {
   const stale = !ctx.hubConnected || ctx.snapshot?.connectionState === 'Stale'
+  const label = ctx.snapshot?.connectionState ?? (ctx.hubConnected ? 'Connected' : 'Disconnected')
+  const color = stale ? 'var(--mantine-color-orange-6)' : 'var(--mantine-color-teal-6)'
+  const variant = resolveFrameVariant(widget, ctx)
   return (
-    <WidgetFrame title={widget.title ?? 'Connection'} stale={stale}>
-      <Stack align="center" justify="center" h="100%">
-        <Badge size="lg" color={stale ? 'orange' : 'green'} variant="light">
-          {ctx.snapshot?.connectionState ?? (ctx.hubConnected ? 'Connected' : 'Disconnected')}
-        </Badge>
-      </Stack>
+    <WidgetFrame title={widget.title ?? 'Connection'} stale={stale} variant={variant} density={ctx.density} accentColor={color}>
+      <StatusMetricTile
+        label="Link"
+        value={label}
+        subtitle={stale ? 'Data may be delayed' : 'Live hub connected'}
+        color={color}
+        density={ctx.density}
+        icon={<IconPlugConnected size={18} stroke={2} />}
+      />
     </WidgetFrame>
   )
 }
 
 export function LastUpdateClockWidget({ widget, ctx }: WidgetProps) {
   const ts = ctx.snapshot?.timestampUtc
+  const variant = resolveFrameVariant(widget, ctx)
+  const time = ts ? new Date(ts).toLocaleTimeString() : '—'
+  const date = ts ? new Date(ts).toLocaleDateString() : undefined
   return (
-    <WidgetFrame title={widget.title ?? 'Last Update'} noData={!ts} stale={!ctx.hubConnected}>
-      <Stack justify="center" h="100%">
-        <Text fw={700}>{ts ? new Date(ts).toLocaleTimeString() : '—'}</Text>
-      </Stack>
+    <WidgetFrame title={widget.title ?? 'Last Update'} noData={!ts} stale={!ctx.hubConnected} variant={variant} density={ctx.density}>
+      <StatusMetricTile
+        label="Snapshot"
+        value={time}
+        subtitle={date}
+        color="var(--mantine-color-blue-6)"
+        density={ctx.density}
+        icon={<IconClockHour4 size={18} stroke={2} />}
+      />
     </WidgetFrame>
   )
 }
 
 export function ProductionRunListWidget({ widget, ctx }: WidgetProps) {
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const snap = resolveScopedSnapshot(ctx, widget.binding)
   const good = snap?.goodCount ?? agg.goodCount
   const reject = snap?.rejectCount ?? agg.rejectCount
@@ -189,15 +209,20 @@ export function MttfTileWidget({ widget, ctx }: WidgetProps) {
     [ctx.lineId, ctx.plantId],
   )
   const mttf = data?.mttfMin ?? 0
+  const presentation = resolveKpiPresentation(widget.options.presentation)
+  const variant = resolveFrameVariant(widget, ctx)
   return (
-    <WidgetFrame title={widget.title ?? 'MTTF'} helpId="mttfMin" noData={!data && !ctx.snapshot} stale={!ctx.hubConnected}>
-      <Text size="30px" fw={800}>
-        {mttf.toFixed(1)}
-        <Text span size="sm" c="dimmed">
-          {' '}
-          min
-        </Text>
-      </Text>
+    <WidgetFrame title={widget.title ?? 'MTTF'} helpId="mttfMin" noData={!data && !ctx.snapshot} stale={!ctx.hubConnected} variant={variant} density={ctx.density}>
+      <PresentationKpi
+        presentation={presentation}
+        value={mttf.toFixed(1)}
+        numericValue={Math.min(100, mttf)}
+        unit="min"
+        color="var(--mantine-color-blue-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+        helpId="mttfMin"
+      />
     </WidgetFrame>
   )
 }
@@ -209,15 +234,20 @@ export function MttdTileWidget({ widget, ctx }: WidgetProps) {
     [ctx.lineId, ctx.plantId],
   )
   const mttd = data?.mttdMin ?? 0
+  const presentation = resolveKpiPresentation(widget.options.presentation)
+  const variant = resolveFrameVariant(widget, ctx)
   return (
-    <WidgetFrame title={widget.title ?? 'MTTD'} helpId="mttdMin" noData={!data && !ctx.snapshot} stale={!ctx.hubConnected}>
-      <Text size="30px" fw={800}>
-        {mttd.toFixed(1)}
-        <Text span size="sm" c="dimmed">
-          {' '}
-          min
-        </Text>
-      </Text>
+    <WidgetFrame title={widget.title ?? 'MTTD'} helpId="mttdMin" noData={!data && !ctx.snapshot} stale={!ctx.hubConnected} variant={variant} density={ctx.density}>
+      <PresentationKpi
+        presentation={presentation}
+        value={mttd.toFixed(1)}
+        numericValue={Math.min(100, mttd)}
+        unit="min"
+        color="var(--mantine-color-violet-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+        helpId="mttdMin"
+      />
     </WidgetFrame>
   )
 }
@@ -323,7 +353,7 @@ export function ScrapTrendWidget({ widget, ctx }: WidgetProps) {
 export function ProductionVsTargetWidget({ widget, ctx }: WidgetProps) {
   const isPlant = widget.binding.source === 'plant' || (ctx.plantId != null && !ctx.lineId)
   const { data: production } = useHistorianProduction(ctx, 'Hour', isPlant ? 'plant' : undefined)
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const chartData = useMemo(
     () =>
       (production ?? []).map((p) => ({
@@ -427,7 +457,7 @@ export function StateDistributionWidget({ widget, ctx }: WidgetProps) {
 /** Shift-to-date time in each run state (from live engine accrual). */
 export function StateTimeBreakdownWidget({ widget, ctx }: WidgetProps) {
   const snap = resolveScopedSnapshot(ctx, widget.binding)
-  const agg = ctx.lineSnapshots.length > 0 ? aggregateSnapshots(ctx.lineSnapshots) : snap
+  const agg = ctx.lineSnapshots.length > 0 ? aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId) : snap
   const segments = [
     { name: 'Idle', value: agg?.idleMin ?? 0, color: 'gray.5' },
     { name: 'Down', value: agg?.downMin ?? 0, color: 'red.6' },
@@ -463,16 +493,22 @@ export function MicroStopCounterWidget({ widget, ctx }: WidgetProps) {
     [ctx.lineId, ctx.plantId],
   )
   const fromEvents = (events ?? []).filter((e) => e.isMicroStop).length
-  const plantCount = aggregateSnapshots(ctx.lineSnapshots).microStopCount
+  const plantCount = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId).microStopCount
   const count = isPlant
     ? plantCount || fromEvents
     : ctx.snapshot?.microStopCount ?? fromEvents
 
   return (
-    <WidgetFrame title={widget.title ?? 'Micro-stops'} noData={count === 0 && !ctx.snapshot} stale={!ctx.hubConnected}>
-      <Text size="30px" fw={800} style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {fmtNumber(count)}
-      </Text>
+    <WidgetFrame title={widget.title ?? 'Micro-stops'} noData={count === 0 && !ctx.snapshot} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      <PresentationKpi
+        presentation={resolveKpiPresentation(widget.options.presentation)}
+        value={fmtNumber(count)}
+        numericValue={count}
+        max={Math.max(20, count)}
+        color="var(--mantine-color-orange-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+      />
     </WidgetFrame>
   )
 }
@@ -484,11 +520,19 @@ export function StopsPerHourWidget({ widget, ctx }: WidgetProps) {
     [ctx.lineId, ctx.plantId],
   )
   const stops = data?.stopsPerHour ?? ctx.snapshot?.stopsPerHour ?? 0
+  const display = typeof stops === 'number' && stops < 100 ? stops.toFixed(2) : String(stops)
   return (
-    <WidgetFrame title={widget.title ?? 'Stops / hr'} noData={!ctx.snapshot && !data} stale={!ctx.hubConnected}>
-      <Text size="30px" fw={800} style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {typeof stops === 'number' && stops < 100 ? stops.toFixed(2) : stops}
-      </Text>
+    <WidgetFrame title={widget.title ?? 'Stops / hr'} noData={!ctx.snapshot && !data} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      <PresentationKpi
+        presentation={resolveKpiPresentation(widget.options.presentation)}
+        value={display}
+        numericValue={typeof stops === 'number' ? stops : 0}
+        max={10}
+        unit="/hr"
+        color="var(--mantine-color-red-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+      />
     </WidgetFrame>
   )
 }
@@ -584,14 +628,17 @@ export function MeanLostTimeWidget({ widget, ctx }: WidgetProps) {
   )
   const val = data?.meanLostTimePerDowntimeMin ?? ctx.snapshot?.meanLostTimePerDowntimeMin ?? 0
   return (
-    <WidgetFrame title={widget.title ?? 'Mean lost time'} noData={!data && !ctx.snapshot} stale={!ctx.hubConnected}>
-      <Text size="30px" fw={800}>
-        {val.toFixed(1)}
-        <Text span size="sm" c="dimmed">
-          {' '}
-          min
-        </Text>
-      </Text>
+    <WidgetFrame title={widget.title ?? 'Mean lost time'} noData={!data && !ctx.snapshot} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      <PresentationKpi
+        presentation={resolveKpiPresentation(widget.options.presentation)}
+        value={val.toFixed(1)}
+        numericValue={val}
+        max={Math.max(30, val)}
+        unit="min"
+        color="var(--mantine-color-orange-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+      />
     </WidgetFrame>
   )
 }
@@ -606,17 +653,18 @@ export function FailureRateWidget({ widget, ctx }: WidgetProps) {
   const failures = data?.failureCount ?? ctx.snapshot?.failureCount ?? 0
 
   return (
-    <WidgetFrame title={widget.title ?? 'Failure rate'} noData={!data && !ctx.snapshot} stale={!ctx.hubConnected}>
-      <Text size="30px" fw={800} style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {rate.toFixed(2)}
-        <Text span size="sm" c="dimmed">
-          {' '}
-          /hr
-        </Text>
-      </Text>
-      <Text size="xs" c="dimmed">
-        {failures} failure{failures === 1 ? '' : 's'} this shift
-      </Text>
+    <WidgetFrame title={widget.title ?? 'Failure rate'} noData={!data && !ctx.snapshot} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      <PresentationKpi
+        presentation={resolveKpiPresentation(widget.options.presentation)}
+        value={rate.toFixed(2)}
+        numericValue={rate}
+        max={10}
+        unit="/hr"
+        subtitle={`${failures} failure${failures === 1 ? '' : 's'} this shift`}
+        color="var(--mantine-color-red-6)"
+        density={ctx.density}
+        label={wallContentLabel(widget, ctx)}
+      />
     </WidgetFrame>
   )
 }
@@ -651,23 +699,37 @@ export function PlannedUnplannedSplitWidget({ widget, ctx }: WidgetProps) {
   )
 }
 
+function interactiveWriteBlockedReason(
+  ctx: WidgetProps['ctx'],
+  hasPermission: boolean,
+  permissionLabel: string,
+): string | null {
+  if (ctx.allowInteractiveWrites !== true) return 'Interactive writes disabled in this view'
+  if (!hasPermission) return `${permissionLabel} permission required`
+  return null
+}
+
 export function OperatorDowntimePadWidget({ widget, ctx }: WidgetProps) {
+  const { hasPermission } = useAuth()
+  const canEnter = hasPermission(Permissions.EnterDowntimeReason)
+  const blocked = interactiveWriteBlockedReason(ctx, canEnter, 'Enter downtime reason')
   const lineId = ctx.lineId ?? ctx.snapshot?.lineId
   const plantId = ctx.plantId
   const [events, setEvents] = useState<DowntimeEvent[]>([])
 
   useEffect(() => {
-    if (!lineId && !plantId) return
+    if (blocked || (!lineId && !plantId)) return
     const load = () =>
       getDowntime(lineId, plantId, null, null, null, true, 20).then(setEvents).catch(() => undefined)
     void load()
     const id = setInterval(() => void load(), 8000)
     return () => clearInterval(id)
-  }, [lineId, plantId])
+  }, [lineId, plantId, blocked])
 
   const unassigned = events.filter((e) => e.requiresOperatorReason !== false).slice(0, 6)
 
   async function assign(eventId: string, reason: string, category: string) {
+    if (blocked) return
     try {
       await setDowntimeReason({ downtimeEventId: eventId, reason, category })
       notifications.show({ message: 'Reason recorded', color: 'green' })
@@ -679,7 +741,16 @@ export function OperatorDowntimePadWidget({ widget, ctx }: WidgetProps) {
 
   return (
     <WidgetFrame title={widget.title ?? 'Downtime Entry'} stale={!ctx.hubConnected}>
-      {unassigned.length === 0 ? (
+      {blocked ? (
+        <Stack align="center" justify="center" h="100%">
+          <Text size="sm" c="dimmed" ta="center">
+            {blocked}
+          </Text>
+          <Button disabled size="sm" variant="light">
+            Assign reason
+          </Button>
+        </Stack>
+      ) : unassigned.length === 0 ? (
         <Text size="sm" c="dimmed">
           No unassigned downtime events
         </Text>
@@ -700,10 +771,13 @@ export function OperatorDowntimePadWidget({ widget, ctx }: WidgetProps) {
 }
 
 export function FaultAckButtonWidget({ widget, ctx }: WidgetProps) {
+  const { hasPermission } = useAuth()
+  const canWrite = hasPermission(Permissions.PlcWrite)
+  const blocked = interactiveWriteBlockedReason(ctx, canWrite, 'PLC write')
   const machineId = ctx.machineId ?? ctx.snapshot?.machineId
 
   async function ack() {
-    if (!machineId) return
+    if (!machineId || blocked) return
     try {
       await sendPlcCommand(machineId, 'Ack')
       notifications.show({ message: 'Ack sent', color: 'green' })
@@ -713,9 +787,12 @@ export function FaultAckButtonWidget({ widget, ctx }: WidgetProps) {
   }
 
   return (
-    <WidgetFrame title={widget.title ?? 'Ack Fault'} stale={!ctx.hubConnected}>
-      <Stack align="center" justify="center" h="100%">
-        <Button color="orange" onClick={ack} disabled={!machineId}>
+    <WidgetFrame title={widget.title ?? 'Ack Fault'} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density} tone="warn">
+      <Stack align="center" justify="center" h="100%" gap="sm">
+        <Text size="xs" c="dimmed" ta="center">
+          {blocked ?? 'Clears the active fault latch on the bound machine'}
+        </Text>
+        <Button color="orange" size="md" radius="md" onClick={ack} disabled={!!blocked || !machineId}>
           Acknowledge fault
         </Button>
       </Stack>
@@ -726,10 +803,11 @@ export function FaultAckButtonWidget({ widget, ctx }: WidgetProps) {
 export function PlcWriteControlsWidget({ widget, ctx }: WidgetProps) {
   const { hasPermission } = useAuth()
   const canWrite = hasPermission(Permissions.PlcWrite)
+  const blocked = interactiveWriteBlockedReason(ctx, canWrite, 'PLC write')
   const machineId = ctx.machineId ?? ctx.snapshot?.machineId
 
   async function cmd(command: string) {
-    if (!machineId || !canWrite) return
+    if (!machineId || blocked) return
     try {
       await sendPlcCommand(machineId, command)
       notifications.show({ message: `${command} sent`, color: 'green' })
@@ -739,25 +817,36 @@ export function PlcWriteControlsWidget({ widget, ctx }: WidgetProps) {
   }
 
   return (
-    <WidgetFrame title={widget.title ?? 'PLC Controls'} stale={!ctx.hubConnected}>
-      {!canWrite ? (
+    <WidgetFrame title={widget.title ?? 'PLC Controls'} stale={!ctx.hubConnected} variant={resolveFrameVariant(widget, ctx)} density={ctx.density}>
+      {blocked ? (
         <Stack align="center" justify="center" h="100%">
           <Text size="sm" c="dimmed" ta="center">
-            PLC write permission required
+            {blocked}
           </Text>
+          <Group justify="center" gap="sm">
+            <Button variant="light" radius="md" disabled>
+              Reset
+            </Button>
+            <Button variant="light" disabled>
+              Start
+            </Button>
+            <Button variant="light" color="orange" disabled>
+              Ack
+            </Button>
+          </Group>
         </Stack>
       ) : (
-      <Group justify="center" h="100%">
-        <Button variant="light" onClick={() => cmd('Reset')} disabled={!machineId}>
-          Reset
-        </Button>
-        <Button variant="light" onClick={() => cmd('StartPermissive')} disabled={!machineId}>
-          Start
-        </Button>
-        <Button variant="light" color="orange" onClick={() => cmd('Ack')} disabled={!machineId}>
-          Ack
-        </Button>
-      </Group>
+        <Group justify="center" h="100%" gap="sm">
+          <Button variant="light" radius="md" onClick={() => cmd('Reset')} disabled={!machineId}>
+            Reset
+          </Button>
+          <Button variant="light" onClick={() => cmd('StartPermissive')} disabled={!machineId}>
+            Start
+          </Button>
+          <Button variant="light" color="orange" onClick={() => cmd('Ack')} disabled={!machineId}>
+            Ack
+          </Button>
+        </Group>
       )}
     </WidgetFrame>
   )

@@ -487,7 +487,7 @@ function ApplyTemplateModal({
       <Stack>
 
         <Text size="sm" c="dimmed">
-          Pick a ready-to-go v7 layout, bind it to your plant or line, and start monitoring immediately.
+          Pick a ready-to-go v8 layout, bind it to your plant or line, and start monitoring immediately.
         </Text>
 
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
@@ -508,7 +508,18 @@ function ApplyTemplateModal({
               >
                 <Stack gap={4}>
                   {meta ? (
-                    <Image src={meta.previewPath} alt="" h={72} fit="cover" radius="sm" fallbackSrc={`/template-previews/${meta.slug}.svg`} />
+                    <Image
+                      src={meta.previewPath}
+                      alt=""
+                      w="100%"
+                      fit="contain"
+                      radius="sm"
+                      fallbackSrc={`/template-previews/${meta.slug}.svg`}
+                      style={{
+                        aspectRatio: '16 / 9',
+                        background: 'var(--mantine-color-gray-0)',
+                      }}
+                    />
                   ) : null}
                   <Group gap={6} wrap="wrap">
                     <Text size="sm" fw={600} lineClamp={1}>

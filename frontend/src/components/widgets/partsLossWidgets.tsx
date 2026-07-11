@@ -1,9 +1,9 @@
 import { Group, Progress, Stack, Text } from '@mantine/core'
 import { partsLossFromLive } from '../../lib/partsLoss'
+import { getFactorColors } from '../../theme/factorColorsRuntime'
 import { WidgetFrame, fmtNumber, type WidgetProps } from './common'
 import { MetricHero } from './design/MetricHero'
 import { WaterfallChart } from './charts/WaterfallChart'
-import { oeeFactorColors } from '../../theme/tokens'
 import { resolveScopedField, resolveScopedSnapshot } from './resolveScopedSnapshot'
 
 export function ExpectedVsActualCountWidget({ widget, ctx }: WidgetProps) {
@@ -50,13 +50,14 @@ export function PartsLossWaterfallWidget({ widget, ctx }: WidgetProps) {
     )
   }
 
+  const colors = getFactorColors()
   const start = Math.max(loss.maxPossibleParts, loss.partsCouldHaveMade, 1)
   const steps = [
     { name: 'Start', value: start, fill: '#8A929E' },
-    { name: 'A', value: loss.partsLostAvailability, fill: oeeFactorColors.availability.hex },
-    { name: 'P', value: loss.partsLostPerformance, fill: oeeFactorColors.performance.hex },
-    { name: 'Q', value: loss.partsLostQuality, fill: oeeFactorColors.quality.hex },
-    { name: 'OEE', value: good, fill: oeeFactorColors.oee.hex },
+    { name: 'A', value: loss.partsLostAvailability, fill: colors.availability.hex },
+    { name: 'P', value: loss.partsLostPerformance, fill: colors.performance.hex },
+    { name: 'Q', value: loss.partsLostQuality, fill: colors.quality.hex },
+    { name: 'OEE', value: good, fill: colors.oee.hex },
   ]
 
   return (

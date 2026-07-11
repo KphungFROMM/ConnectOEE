@@ -53,6 +53,12 @@ public class OeeConfig : EntityBase
     public LineProductionMode ProductionMode { get; set; } = LineProductionMode.MultiProduct;
     /// <summary>SetupTracked = auto changeover downtime on product change; LogOnly = ProductionRun log only.</summary>
     public ChangeoverMode ChangeoverMode { get; set; } = ChangeoverMode.SetupTracked;
+    /// <summary>Independent (parallel) vs Continuous (serial A→B→C) machine topology.</summary>
+    public LineTopology Topology { get; set; } = LineTopology.Independent;
+    /// <summary>Continuous: machine whose good/reject counts represent line output. Null = last by SequenceIndex.</summary>
+    public Guid? LineOutputMachineId { get; set; }
+    /// <summary>Continuous: machine whose ideal cycle paces Performance. Null = same as output.</summary>
+    public Guid? PacingMachineId { get; set; }
 }
 
 /// <summary>Maps a numeric PLC downtime reason code to a human-readable label per machine/line.</summary>

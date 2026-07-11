@@ -6,6 +6,7 @@ import { getUnassignedDowntime, type DowntimeEvent } from './metrics'
 import {
   buildMachineGridGroups,
 } from '../components/widgets/machineGridUtils'
+import { resolveLineTopology } from './lineTopology'
 
 export interface OperatorFilters {
   plantId: string | null
@@ -22,6 +23,8 @@ export interface OperatorStation {
   plantId: string
   plantName: string
   snapshot: MachineSnapshot
+  /** True when this station is the Continuous line output. */
+  isLineOutput?: boolean
 }
 
 function isDown(state: string) {
@@ -69,6 +72,23 @@ export function useOperatorStations(
 
   const stations: OperatorStation[] = useMemo(() => {
     const rows: OperatorStation[] = []
+    const outputByLine = new Map<string, string | null>()
+    for (const p of tree) {
+      for (const d of p.departments) {
+        for (const l of d.lines) {
+          if ((l.topology ?? 'Independent') !== 'Continuous') continue
+          const resolved = resolveLineTopology(
+            {
+              topology: 'Continuous',
+              lineOutputMachineId: l.lineOutputMachineId,
+              pacingMachineId: l.pacingMachineId,
+            },
+            l.machines.map((m) => m.id),
+          )
+          outputByLine.set(l.id, resolved.outputId)
+        }
+      }
+    }
     for (const g of filteredGroups) {
       for (const m of g.machines) {
         rows.push({
@@ -80,6 +100,7 @@ export function useOperatorStations(
           plantId: tree.find((p) => p.name === g.plantName)?.id ?? plantId ?? '',
           plantName: g.plantName,
           snapshot: m.snapshot,
+          isLineOutput: outputByLine.get(m.lineId) === m.machineId,
         })
       }
     }
@@ -92,6 +113,28 @@ export function useOperatorStations(
     for (const snap of snapshots) map.set(snap.machineId.toLowerCase(), snap.machineName)
     return map
   }, [stations, snapshots])
+
+  const lineNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of tree) {
+      for (const d of p.departments) {
+        for (const l of d.lines) map.set(l.id.toLowerCase(), l.name)
+      }
+    }
+    return map
+  }, [tree])
+
+  const lineNameByMachineId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of tree) {
+      for (const d of p.departments) {
+        for (const l of d.lines) {
+          for (const m of l.machines) map.set(m.id.toLowerCase(), l.name)
+        }
+      }
+    }
+    return map
+  }, [tree])
 
   const queryPlantId = filters.lineId ? null : plantId
   const queryLineId = filters.lineId
@@ -167,6 +210,8 @@ export function useOperatorStations(
     unassigned,
     unassignedByMachine,
     machineNameById,
+    lineNameById,
+    lineNameByMachineId,
     eventsLoading,
     summary,
     plantOptions,

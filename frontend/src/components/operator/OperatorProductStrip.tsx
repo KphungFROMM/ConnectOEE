@@ -111,8 +111,10 @@ export function OperatorProductStrip({ lineId, machineId, machine, canSelect }: 
               data={recipeOptions}
               value={safeActiveRecipeId}
               onChange={(v) => void pickProduct(v)}
+              onClear={() => void pickProduct(null)}
               searchable
               clearable
+              rightSectionPointerEvents="all"
               w={280}
             />
           ) : (

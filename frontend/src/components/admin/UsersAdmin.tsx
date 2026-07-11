@@ -44,9 +44,11 @@ export function UsersAdmin() {
   const plantOpts = tree.map((p) => ({ value: p.id, label: p.name }))
   const plantNameById = new Map(tree.map((p) => [p.id, p.name]))
   const lineNameById = new Map(
-    tree.flatMap((p) => p.departments.flatMap((d) => d.lines.map((l) => [l.id, `${p.name} / ${l.name}`] as const))),
+    tree.flatMap((p) => p.departments.flatMap((d) => d.lines.map((l) => [l.id, l.name] as const))),
   )
-  const lineOpts = tree.flatMap((p) => p.departments.flatMap((d) => d.lines.map((l) => ({ value: l.id, label: `${p.name} / ${l.name}` }))))
+  const lineOpts = tree.flatMap((p) =>
+    p.departments.flatMap((d) => d.lines.map((l) => ({ value: l.id, label: `${p.name} / ${l.name}` }))),
+  )
 
   const reload = () => {
     void listUsers().then(setUsers).catch(() => undefined)

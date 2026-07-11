@@ -18,6 +18,7 @@ export function KpiValue({
   megaCount,
   wallBoard,
   helpId,
+  showSparkline,
 }: {
   value: string
   unit?: string
@@ -32,12 +33,16 @@ export function KpiValue({
   megaCount?: boolean
   footer?: ReactNode
   helpId?: string
+  /** Force sparkline even on wall boards (spark presentation). */
+  showSparkline?: boolean
 }) {
   const fontSize = megaCount
     ? scaledSize(density === 'kiosk' ? 52 : 40, density)
     : scaledSize(density === 'kiosk' ? 36 : 28, density)
   const hideExtras = megaCount || wallBoard
   const deltaPct = !hideExtras && delta != null && Number.isFinite(delta) ? delta : null
+  const sparkVisible =
+    !!showSparkline || (!hideExtras && !!sparklineData && sparklineData.length >= 2)
 
   return (
     <Stack gap={density === 'kiosk' ? 8 : 4} justify="center" h="100%" align={megaCount ? 'center' : undefined}>
@@ -67,8 +72,8 @@ export function KpiValue({
           </Badge>
         ) : null}
       </Group>
-      {sparklineData && sparklineData.length >= 2 && !hideExtras ? (
-        <Sparkline data={sparklineData} color={sparklineColor} filled showLastPoint height={density === 'kiosk' ? 40 : 28} />
+      {sparkVisible && sparklineData && sparklineData.length >= 2 ? (
+        <Sparkline data={sparklineData} color={sparklineColor} filled showLastPoint height={density === 'kiosk' ? 44 : 32} />
       ) : null}
     </Stack>
   )

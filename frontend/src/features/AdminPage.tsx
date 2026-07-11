@@ -13,9 +13,11 @@ import {
   IconLayoutGrid,
   IconComponents,
   IconKey,
+  IconPalette,
 } from '@tabler/icons-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { HierarchyEditor, PlcEditor, TagMappingEditor } from '../components/admin/editors'
+import { AppearanceAdmin } from '../components/admin/AppearanceAdmin'
 import { ShiftAdmin } from '../components/admin/ShiftAdmin'
 import { SystemAdmin } from '../components/admin/SystemAdmin'
 import { AuditAdmin } from '../components/admin/AuditAdmin'
@@ -119,19 +121,14 @@ export function AdminPage() {
               Audit
             </Tabs.Tab>
           ) : null}
+          {hasPermission(Permissions.ManageUsers) ? (
+            <Tabs.Tab value="appearance" leftSection={<IconPalette size={16} />}>
+              Appearance
+            </Tabs.Tab>
+          ) : null}
           <Tabs.Tab value="license" leftSection={<IconKey size={16} />}>
             License
           </Tabs.Tab>
-          {canViewGalleries ? (
-            <Tabs.Tab value="templates" leftSection={<IconLayoutGrid size={16} />}>
-              Template Gallery
-            </Tabs.Tab>
-          ) : null}
-          {canViewGalleries ? (
-            <Tabs.Tab value="widgets" leftSection={<IconComponents size={16} />}>
-              Widget Gallery
-            </Tabs.Tab>
-          ) : null}
           <Tabs.Tab value="system" leftSection={<IconServer2 size={16} />}>
             System
           </Tabs.Tab>
@@ -168,6 +165,11 @@ export function AdminPage() {
         {hasPermission(Permissions.ManageUsers) ? (
           <Tabs.Panel value="audit" pt="md">
             <AuditAdmin />
+          </Tabs.Panel>
+        ) : null}
+        {hasPermission(Permissions.ManageUsers) ? (
+          <Tabs.Panel value="appearance" pt="md">
+            <AppearanceAdmin />
           </Tabs.Panel>
         ) : null}
         <Tabs.Panel value="license" pt="md">

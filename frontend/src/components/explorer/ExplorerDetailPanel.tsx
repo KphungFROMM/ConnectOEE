@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Anchor, Badge, Card, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core'
+import { Anchor, Badge, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core'
 import { Link } from 'react-router-dom'
 import type { PlantNode } from '../../lib/hierarchy'
 import type { MachineSnapshot } from '../../lib/liveHub'
@@ -13,7 +13,6 @@ import { ReliabilityTrendChart } from '../analytics/ReliabilityTrendChart'
 import { DowntimeByMachineChart } from './DowntimeByMachineChart'
 import { ExplorerChildCompare } from './ExplorerChildCompare'
 import { ExplorerKpiHero } from './ExplorerKpiHero'
-import { ExplorerMachineStrip } from './ExplorerMachineStrip'
 import { LineProductStrip } from './LineProductStrip'
 import { ExplorerOperationsAccordion } from './ExplorerOperationsAccordion'
 import { ExplorerTrendSection } from './ExplorerTrendSection'
@@ -28,7 +27,11 @@ import { ExplorerPartsSection } from './ExplorerPartsSection'
 import { useAuth } from '../../lib/auth'
 import { Permissions } from '../../lib/permissions'
 import { liveMetricsForExplorerNode, machineNamesForLine, mergeKpiWithSnapshot, pickSnapshot, teepPctForExplorerNode } from './explorerKpi'
-import { ConnectionPill, ExplorerStatusDot } from './explorerStatus'
+import { ConnectionPill } from './explorerStatus'
+import { GaugeRing } from '../widgets/design/GaugeRing'
+import { StatusPill } from '../widgets/design/StatusPill'
+import { WidgetSurface } from '../widgets/design/WidgetSurface'
+import { oeeExplorerHexColor, statusSurfaceTone, WidgetFrame } from '../widgets/common'
 import type { ExplorerNode, ExplorerRange } from './explorerTypes'
 
 function findPlantId(tree: PlantNode[], nodeId: string): string | undefined {
@@ -145,6 +148,26 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
 
   const analyticsScope = `${node.level}:${node.id}`
   const activeProduct = kpi.activeRecipeCode
+  const isMachine = node.level === 'Machine'
+  const oeeHex = oeeExplorerHexColor(kpi.oeePct, kpi.connectionState)
+
+  const continuousLineMeta = useMemo(() => {
+    if (node.level !== 'Line') return null
+    for (const p of tree) {
+      for (const d of p.departments) {
+        const line = d.lines.find((l) => l.id === node.id)
+        if (!line) continue
+        if ((line.topology ?? node.topology ?? 'Independent') !== 'Continuous') return null
+        return {
+          outputName: line.lineOutputMachineName ?? node.lineOutputMachineName ?? null,
+        }
+      }
+    }
+    if (node.topology === 'Continuous') {
+      return { outputName: node.lineOutputMachineName ?? null }
+    }
+    return null
+  }, [node, tree])
 
   const downtimeChartTitle =
     node.level === 'Line' ? 'Downtime by machine' : node.level === 'Department' ? 'Downtime by line' : 'Downtime by department'
@@ -176,10 +199,18 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
 
   return (
     <Stack gap="md">
-      <Paper withBorder p="md" radius="md" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+      <WidgetSurface
+        tone={statusSurfaceTone(kpi.status, kpi.connectionState)}
+        padding="md"
+        radius="md"
+        style={{ position: 'sticky', top: 0, zIndex: 10 }}
+      >
         <Group justify="space-between" align="flex-start" wrap="wrap">
-          <Group gap="sm">
-            <ExplorerStatusDot status={kpi.status} connectionState={kpi.connectionState} />
+          <Group gap="md" wrap="wrap">
+            {isMachine ? (
+              <GaugeRing value={kpi.oeePct} label="OEE" size={80} thickness={10} ringColor={oeeHex} showLabelBelow />
+            ) : null}
+            <StatusPill state={kpi.status} />
             <div>
               <Group gap="xs">
                 <Text fw={700} size="lg">
@@ -188,6 +219,11 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
                 <Badge variant="light" size="sm">
                   {node.level}
                 </Badge>
+                {continuousLineMeta ? (
+                  <Badge variant="light" color="violet" size="sm">
+                    Continuous{continuousLineMeta.outputName ? ` · ${continuousLineMeta.outputName}` : ''}
+                  </Badge>
+                ) : null}
                 {activeProduct ? (
                   <Badge
                     variant="outline"
@@ -207,14 +243,29 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
               </Text>
             </div>
           </Group>
-          <Group gap="sm">
-            <ConnectionPill connectionState={kpi.connectionState} />
-            <Anchor component={Link} to={`/analytics?scope=${encodeURIComponent(analyticsScope)}`} size="sm">
-              Open in Analytics
-            </Anchor>
-          </Group>
+          <Stack gap="xs" align="flex-end">
+            <Group gap="sm">
+              <ConnectionPill connectionState={kpi.connectionState} />
+              <Anchor component={Link} to={`/analytics?scope=${encodeURIComponent(analyticsScope)}`} size="sm">
+                Open in Analytics
+              </Anchor>
+            </Group>
+            {isMachine ? (
+              <Group gap="xs">
+                <Badge variant="light" color="blue">
+                  A {kpi.availabilityPct.toFixed(0)}%
+                </Badge>
+                <Badge variant="light" color="indigo">
+                  P {kpi.performancePct.toFixed(0)}%
+                </Badge>
+                <Badge variant="light" color="grape">
+                  Q {kpi.qualityPct.toFixed(0)}%
+                </Badge>
+              </Group>
+            ) : null}
+          </Stack>
         </Group>
-      </Paper>
+      </WidgetSurface>
 
       <OfflineHint connectionState={kpi.connectionState} />
 
@@ -234,6 +285,19 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
         preferLive={range === 'shift'}
       />
 
+      {node.level !== 'Machine' ? (
+        <ExplorerChildCompare
+          parentLevel={node.level}
+          children={historian.children}
+          snapshot={historian.snapshot}
+          initialLoading={historian.initialLoading}
+          onSelect={(d) => {
+            const next = drillToExplorerNode(tree, d, node)
+            if (next) onSelectNode(next)
+          }}
+        />
+      ) : null}
+
       <ExplorerPartsSection
         snapshots={scopedSnapshots}
         historianSnapshot={historian.snapshot}
@@ -248,43 +312,19 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
         onRangeChange={setRange}
       />
 
-      {node.level !== 'Machine' ? (
-        <ExplorerChildCompare
-          parentLevel={node.level}
-          children={historian.children}
-          snapshot={historian.snapshot}
-          initialLoading={historian.initialLoading}
-          onSelect={(d) => {
-            const next = drillToExplorerNode(tree, d, node)
-            if (next) onSelectNode(next)
-          }}
-        />
-      ) : null}
-
-      <ExplorerMachineStrip level={node.level} nodeId={node.id} tree={tree} snapshots={snapshots} />
-
       {historian.production.length > 0 ? (
-        <Card withBorder radius="md" padding="md">
-          <Text fw={600} mb="sm">
-            Production
-          </Text>
+        <WidgetFrame title="Production" live={!historian.initialLoading}>
           <ProductionChart production={historian.production} showScrapTrend />
-        </Card>
+        </WidgetFrame>
       ) : null}
 
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-        <Card withBorder radius="md" padding="md">
-          <Text fw={600} mb="sm">
-            Downtime by category
-          </Text>
+        <WidgetFrame title="Downtime by category" live={!historian.initialLoading}>
           <LossesDonut losses={historian.losses} />
-        </Card>
-        <Card withBorder radius="md" padding="md">
-          <Text fw={600} mb="sm">
-            Loss pareto
-          </Text>
+        </WidgetFrame>
+        <WidgetFrame title="Loss pareto" live={!historian.initialLoading}>
           <LossParetoChart reasons={historian.reasons} />
-        </Card>
+        </WidgetFrame>
       </SimpleGrid>
 
       {showDowntimeBreakdown ? (
@@ -309,10 +349,7 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
             snapshot={snapshot}
           />
           <ReliabilityStrip live={live} />
-          <Card withBorder radius="md" padding="md">
-            <Text fw={600} mb="sm">
-              Reliability trend
-            </Text>
+          <WidgetFrame title="Reliability trend" live={!historian.initialLoading}>
             <ReliabilityTrendChart
               trend={historian.reliabilityTrend}
               liveFallback={
@@ -327,7 +364,7 @@ export function ExplorerDetailPanel({ node, tree, snapshots, onSelectNode }: Pro
                   : null
               }
             />
-          </Card>
+          </WidgetFrame>
         </>
       ) : null}
 
@@ -365,8 +402,8 @@ function DrillLinks({ lineName, scope }: { lineName?: string; scope: string }) {
         <Anchor component={Link} to={`/reports?scope=${encodeURIComponent(scope)}`}>
           Reports
         </Anchor>
-        <Anchor component={Link} to="/tags">
-          Tag Browser
+        <Anchor component={Link} to="/admin?tab=tags">
+          Tag Mapping
         </Anchor>
         {lineName ? (
           <Text size="sm" c="dimmed">

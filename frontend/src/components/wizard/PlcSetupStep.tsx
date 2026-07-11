@@ -38,7 +38,7 @@ export function PlcSetupStep({ plcConnectionCount, onChange }: PlcSetupStepProps
         ) : null}
         {faulted.map((h) => (
           <Alert key={h.connectionId ?? h.name} color="red" variant="light" title={`${h.name} — ${h.state}`}>
-            {h.statusDetail ?? 'Driver cannot read mapped tags. Verify IP, CPU path/slot, and tag paths in Tag Browser.'}
+            {h.statusDetail ?? 'Driver cannot read mapped tags. Verify IP, CPU path/slot, and tag paths in Admin → Tag Mapping.'}
           </Alert>
         ))}
         <PlcEditor wizardMode onChange={onChange} />

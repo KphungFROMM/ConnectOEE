@@ -67,6 +67,9 @@ export interface LineOeeDto {
   productionMode: import('./idealRate').LineProductionMode
   changeoverMode: import('./idealRate').ChangeoverMode
   reworkTracking: import('./idealRate').ReworkTrackingMode
+  topology: import('./lineTopology').LineTopologyMode
+  lineOutputMachineId?: string | null
+  pacingMachineId?: string | null
 }
 export const getLineOee = (lineId: string) => apiGet<LineOeeDto>(`/api/hierarchy/lines/${lineId}/oee`)
 export const updateLineOee = (
@@ -81,6 +84,9 @@ export const updateLineOee = (
     productionMode?: import('./idealRate').LineProductionMode
     changeoverMode?: import('./idealRate').ChangeoverMode
     reworkTracking?: import('./idealRate').ReworkTrackingMode
+    topology?: import('./lineTopology').LineTopologyMode
+    lineOutputMachineId?: string | null
+    pacingMachineId?: string | null
   },
 ) => apiPut<void>(`/api/hierarchy/lines/${lineId}/oee`, body)
 export const createMachine = (body: { lineId: string; name: string; sequenceIndex?: number }) =>
@@ -123,6 +129,16 @@ export const updateConnection = (
   body: Partial<PlcConnection> & { name: string; driverType: string },
 ) => apiPut<void>(`/api/plc/connections/${id}`, body)
 export const deleteConnection = (id: string) => apiDelete(`/api/plc/connections/${id}`)
+
+export interface ConnectionTestResult {
+  ok: boolean
+  message: string
+  tagCount?: number | null
+}
+
+/** Probe a not-yet-saved (or edited) connection using the form fields. */
+export const testConnection = (body: { driverType: string; endpoint?: string; path?: string }) =>
+  apiPost<ConnectionTestResult>('/api/plc/connections/test', body)
 
 // ---- Live driver / connection health ----
 export interface DriverStatus {

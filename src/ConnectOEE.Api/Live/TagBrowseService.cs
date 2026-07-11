@@ -31,15 +31,123 @@ public class TagBrowseService
         ITagBrowsingDriver? driver = conn.DriverType switch
         {
             DriverType.Mock => new MockDriver(Array.Empty<DriverMachine>()),
-            DriverType.RockwellEthernetIp when !string.IsNullOrWhiteSpace(conn.Endpoint) =>
+            DriverType.RockwellEthernetIp or DriverType.RockwellMicroLogix or DriverType.RockwellMicro800
+                when !string.IsNullOrWhiteSpace(conn.Endpoint) =>
                 new RockwellDriver(
-                    new RockwellConnectionOptions(conn.Endpoint!.Trim(), conn.Path),
+                    new RockwellConnectionOptions(
+                        conn.Endpoint!.Trim(),
+                        conn.Path,
+                        PlcKind: RockwellDriver.PlcKindFor(conn.DriverType)),
                     Array.Empty<RockwellTagBinding>(),
-                    logger: _loggerFactory.CreateLogger<RockwellDriver>()),
-            // OPC UA / others gain browsing in later phases.
+                    logger: _loggerFactory.CreateLogger<RockwellDriver>(),
+                    driverType: conn.DriverType),
+            DriverType.ModbusTcp when !string.IsNullOrWhiteSpace(conn.Endpoint) =>
+                new ModbusTcpDriver(
+                    ModbusTcpDriver.ParseEndpoint(conn.Endpoint!.Trim(), conn.Path),
+                    Array.Empty<ModbusTagBinding>(),
+                    _loggerFactory.CreateLogger<ModbusTcpDriver>()),
+            DriverType.OpcUa when !string.IsNullOrWhiteSpace(conn.Endpoint) =>
+                new OpcUaDriver(
+                    new OpcUaConnectionOptions(OpcUaDriver.NormalizeEndpoint(conn.Endpoint!), TimeoutMs: 8000),
+                    Array.Empty<OpcUaTagBinding>(),
+                    _loggerFactory.CreateLogger<OpcUaDriver>()),
             _ => null,
         };
         return (conn.DriverType, driver);
+    }
+
+    public record ConnectionTestResult(bool Ok, string Message, int? TagCount = null);
+
+    /// <summary>
+    /// Probes a not-yet-saved (or edited) connection using the form fields.
+    /// Does not persist anything or touch the live DriverRegistry.
+    /// </summary>
+    public async Task<ConnectionTestResult> TestAsync(
+        string driverType,
+        string? endpoint,
+        string? path,
+        CancellationToken ct = default)
+    {
+        if (!Enum.TryParse<DriverType>(driverType, ignoreCase: true, out var dt))
+            return new ConnectionTestResult(false, $"Unknown driver type '{driverType}'.");
+
+        switch (dt)
+        {
+            case DriverType.Mock:
+                return new ConnectionTestResult(true, "Mock / Simulator is ready — no network required.");
+
+            case DriverType.RockwellEthernetIp:
+            case DriverType.RockwellMicroLogix:
+            case DriverType.RockwellMicro800:
+            {
+                if (string.IsNullOrWhiteSpace(endpoint))
+                    return new ConnectionTestResult(false, "IP address is required.");
+                if (dt == DriverType.RockwellEthernetIp && string.IsNullOrWhiteSpace(path))
+                    return new ConnectionTestResult(false, "CPU path / slot is required (e.g. 1,0).");
+
+                var driver = new RockwellDriver(
+                    new RockwellConnectionOptions(
+                        endpoint.Trim(),
+                        path?.Trim(),
+                        PlcKind: RockwellDriver.PlcKindFor(dt),
+                        TimeoutMs: 8000),
+                    Array.Empty<RockwellTagBinding>(),
+                    logger: _loggerFactory.CreateLogger<RockwellDriver>(),
+                    driverType: dt);
+                try
+                {
+                    var (ok, message, tagCount) = await driver.ProbeAsync(ct);
+                    return new ConnectionTestResult(ok, message, tagCount);
+                }
+                finally
+                {
+                    driver.Dispose();
+                }
+            }
+
+            case DriverType.ModbusTcp:
+            {
+                if (string.IsNullOrWhiteSpace(endpoint))
+                    return new ConnectionTestResult(false, "IP address is required.");
+
+                var driver = new ModbusTcpDriver(
+                    ModbusTcpDriver.ParseEndpoint(endpoint.Trim(), path, timeoutMs: 8000),
+                    Array.Empty<ModbusTagBinding>(),
+                    _loggerFactory.CreateLogger<ModbusTcpDriver>());
+                try
+                {
+                    var (ok, message, tagCount) = await driver.ProbeAsync(ct);
+                    return new ConnectionTestResult(ok, message, tagCount);
+                }
+                finally
+                {
+                    driver.Dispose();
+                }
+            }
+
+            case DriverType.OpcUa:
+            {
+                if (string.IsNullOrWhiteSpace(endpoint))
+                    return new ConnectionTestResult(false, "OPC UA endpoint URL is required (e.g. opc.tcp://host:50000).");
+
+                var driver = new OpcUaDriver(
+                    new OpcUaConnectionOptions(OpcUaDriver.NormalizeEndpoint(endpoint), TimeoutMs: 12000),
+                    Array.Empty<OpcUaTagBinding>(),
+                    _loggerFactory.CreateLogger<OpcUaDriver>());
+                try
+                {
+                    var (ok, message, tagCount) = await driver.ProbeAsync(ct);
+                    return new ConnectionTestResult(ok, message, tagCount);
+                }
+                finally
+                {
+                    driver.Dispose();
+                }
+            }
+
+            default:
+                return new ConnectionTestResult(false, $"{dt} is not implemented yet — cannot test this driver.");
+        }
     }
 
     public static TagDataType ParseDataType(string? value)

@@ -16,7 +16,7 @@ import {
   TextInput,
 } from '@mantine/core'
 import { TimeInput } from '@mantine/dates'
-import { IconPlayerPlay, IconPlus, IconTrash, IconFileText } from '@tabler/icons-react'
+import { IconPencil, IconPlayerPlay, IconPlus, IconTrash } from '@tabler/icons-react'
 import {
   createSchedule,
   deleteSchedule,
@@ -29,6 +29,31 @@ import {
 import type { ScheduleForm, ScopeOption } from './reportConstants'
 import { EMPTY_SCHEDULE, RANGE_OPTIONS } from './reportConstants'
 import { ConfirmDeleteModal, notifyReport } from './ReportHistoryTab'
+
+const WEEKDAYS = [
+  { value: '0', label: 'Sunday' },
+  { value: '1', label: 'Monday' },
+  { value: '2', label: 'Tuesday' },
+  { value: '3', label: 'Wednesday' },
+  { value: '4', label: 'Thursday' },
+  { value: '5', label: 'Friday' },
+  { value: '6', label: 'Saturday' },
+]
+
+function formatCadence(s: { frequency: string; timeOfDay: string; dayOfPeriod: number }) {
+  const time = s.timeOfDay || '06:00'
+  if (s.frequency === 'Daily') return `Daily at ${time}`
+  if (s.frequency === 'Weekly') {
+    const day = WEEKDAYS.find((d) => d.value === String(s.dayOfPeriod))?.label ?? `day ${s.dayOfPeriod}`
+    return `Weekly · ${day} at ${time}`
+  }
+  return `Monthly · day ${s.dayOfPeriod} at ${time}`
+}
+
+function formatDelivery(s: { deliveryMethod: string; recipients?: string | null; fileDropPath?: string | null }) {
+  if (s.deliveryMethod === 'Email') return s.recipients?.trim() || 'Email (no recipients)'
+  return s.fileDropPath?.trim() || 'File drop (path unset)'
+}
 
 export function ReportSchedulesTab({
   templates,
@@ -181,9 +206,18 @@ export function ReportSchedulesTab({
                   </Table.Td>
                   <Table.Td>{scopeLabel(s.scopeLevel, s.scopeId)}</Table.Td>
                   <Table.Td>
-                    {s.frequency} {s.timeOfDay}
+                    <Text size="sm">{formatCadence(s)}</Text>
                   </Table.Td>
-                  <Table.Td>{s.deliveryMethod === 'Email' ? s.recipients : s.fileDropPath}</Table.Td>
+                  <Table.Td>
+                    <Stack gap={2}>
+                      <Badge size="xs" variant="light" w="fit-content">
+                        {s.deliveryMethod === 'Email' ? 'Email' : 'File drop'}
+                      </Badge>
+                      <Text size="xs" c="dimmed" lineClamp={1}>
+                        {formatDelivery(s)}
+                      </Text>
+                    </Stack>
+                  </Table.Td>
                   <Table.Td>{s.nextRunUtc ? new Date(s.nextRunUtc).toLocaleString() : '—'}</Table.Td>
                   <Table.Td>
                     {s.lastStatus ? (
@@ -223,7 +257,7 @@ export function ReportSchedulesTab({
                           }
                           title="Edit"
                         >
-                          <IconFileText size={16} />
+                          <IconPencil size={16} />
                         </ActionIcon>
                         <ActionIcon variant="subtle" color="red" onClick={() => setDeleteTarget(s)} title="Delete">
                           <IconTrash size={16} />
@@ -338,13 +372,23 @@ function ScheduleEditor({
           onChange={(e) => set({ timeOfDay: e.currentTarget.value })}
         />
         {form.frequency !== 'Daily' ? (
-          <NumberInput
-            label={form.frequency === 'Weekly' ? 'Day of week (0=Sun)' : 'Day of month'}
-            value={form.dayOfPeriod}
-            min={form.frequency === 'Weekly' ? 0 : 1}
-            max={form.frequency === 'Weekly' ? 6 : 28}
-            onChange={(v) => set({ dayOfPeriod: Number(v) || 1 })}
-          />
+          form.frequency === 'Weekly' ? (
+            <Select
+              label="Day of week"
+              data={WEEKDAYS}
+              value={String(form.dayOfPeriod)}
+              onChange={(v) => set({ dayOfPeriod: Number(v ?? 1) })}
+              allowDeselect={false}
+            />
+          ) : (
+            <NumberInput
+              label="Day of month"
+              value={form.dayOfPeriod}
+              min={1}
+              max={28}
+              onChange={(v) => set({ dayOfPeriod: Number(v) || 1 })}
+            />
+          )
         ) : null}
       </Group>
       <Select

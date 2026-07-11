@@ -17,6 +17,9 @@ const LAYOUT_KEYS = new Set([
   'limit',
   'alt',
   'title',
+  'cardStyle',
+  'groupByLine',
+  'sortBy',
 ])
 
 interface WidgetOptionsEditorProps {
@@ -171,6 +174,43 @@ export function WidgetOptionsEditor({ widget, onChange }: WidgetOptionsEditorPro
           max={50}
           value={(widget.options.limit as number) ?? 10}
           onChange={(v) => setOption('limit', typeof v === 'number' ? v : 10)}
+        />
+      ) : null}
+      {opts.includes('cardStyle') ? (
+        <Select
+          label="Machine tile style"
+          size="xs"
+          data={[
+            { value: 'default', label: 'Default' },
+            { value: 'performance', label: 'Performance band' },
+          ]}
+          value={(widget.options.cardStyle as string) ?? 'default'}
+          onChange={(v) => setOption('cardStyle', v ?? 'default')}
+        />
+      ) : null}
+      {opts.includes('groupByLine') ? (
+        <Select
+          label="Group by line"
+          size="xs"
+          data={[
+            { value: 'true', label: 'Yes' },
+            { value: 'false', label: 'No' },
+          ]}
+          value={String((widget.options.groupByLine as boolean | undefined) !== false)}
+          onChange={(v) => setOption('groupByLine', v !== 'false')}
+        />
+      ) : null}
+      {opts.includes('sortBy') ? (
+        <Select
+          label="Sort machines"
+          size="xs"
+          data={[
+            { value: 'name', label: 'Name' },
+            { value: 'oee', label: 'OEE' },
+            { value: 'state', label: 'State' },
+          ]}
+          value={(widget.options.sortBy as string) ?? 'name'}
+          onChange={(v) => setOption('sortBy', v ?? 'name')}
         />
       ) : null}
     </Stack>

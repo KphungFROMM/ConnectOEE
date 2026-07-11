@@ -104,42 +104,33 @@ public class WizardController : ControllerBase
             var linePlantId = line.Department?.PlantId ?? plantId;
             var lineDashboards = new (string Template, string Suffix, bool Kiosk)[]
             {
-                ("Line Performance Board", "Overview", false),
-                ("Shift Huddle Board", "Shift", false),
-                ("Machine Station Detail", "Detail", false),
-                ("Downtime Detective", "Downtime", false),
-                ("Production & Pace", "Production", false),
-                ("Quality & Yield Lab", "Quality", false),
-                ("Supervisor Cockpit", "Supervisor", false),
-                ("Setup & Changeover", "Setup", false),
-                ("Operator Kiosk", "Operator Kiosk", true),
-                ("Line Andon Wall", "Andon", true),
+                ("Shift Supervisor", "Supervisor", false),
+                ("Production Board", "Production", false),
+                ("Quality Pulse", "Quality", false),
+                ("Operator Floor", "Operator Floor", true),
+                ("Line Andon", "Andon", true),
             };
             foreach (var (template, suffix, kiosk) in lineDashboards)
             {
                 if (!byName.TryGetValue(template, out var tpl)) continue;
-                var machineId = template is "Machine Station Detail" or "Operator Kiosk" or "Supervisor Cockpit" or "Setup & Changeover"
+                var machineId = template is "Operator Floor"
                     ? firstMachine?.Id
                     : null;
                 TryCreate($"{line.Name} — {suffix}", tpl, linePlantId, line.Id, machineId, kiosk);
             }
         }
 
-        foreach (var tplName in new[] { "Plant Command Center", "Executive Briefing", "Plant Reliability Hub", "TEEP & Utilization" })
+        foreach (var tplName in new[] { "Plant Overview", "Analytics Starter" })
         {
             if (byName.TryGetValue(tplName, out var tpl) && plantId != Guid.Empty)
                 TryCreate(tplName, tpl, plantId, null, null, false);
         }
 
-        if (byName.TryGetValue("Maintenance Wallboard", out var wallboardTpl) && plantId != Guid.Empty)
+        if (byName.TryGetValue("Maintenance Wall", out var wallboardTpl) && plantId != Guid.Empty)
         {
             var wallboardLineId = lines.FirstOrDefault()?.Id;
-            TryCreate("Maintenance Wallboard", wallboardTpl, plantId, wallboardLineId, null, true);
+            TryCreate("Maintenance Wall", wallboardTpl, plantId, wallboardLineId, null, true);
         }
-
-        var multiUnit = lines.Count >= 2 || lines.Any(l => l.Machines.Count >= 2);
-        if (multiUnit && byName.TryGetValue("Floor At-a-Glance", out var multiTpl) && plantId != Guid.Empty)
-            TryCreate("Floor At-a-Glance", multiTpl, plantId, null, null, false);
 
         await _db.SaveChangesAsync();
         await _audit.LogAsync("wizard.generate-dashboards", me, User.GetUserName(), details: new { created.Count });

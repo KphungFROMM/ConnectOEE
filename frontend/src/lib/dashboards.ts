@@ -16,6 +16,8 @@ export interface WidgetOptions {
   unit?: string
   tone?: 'good' | 'bad' | 'neutral'
   decimals?: number
+  /** identity = factor hue; band = value vs target tiers */
+  colorMode?: 'identity' | 'band'
   [k: string]: unknown
 }
 export interface DashboardWidget {
@@ -28,6 +30,10 @@ export interface DashboardWidget {
   h: number
   binding: WidgetBinding
   options: WidgetOptions
+  /** Parent container/tab widget id; omit/null = root grid. */
+  parentId?: string | null
+  /** For tabbed-panel children: tab index key ("0", "1", …). */
+  tabKey?: string | null
 }
 export interface Dashboard {
   id: string
@@ -71,6 +77,10 @@ export interface SaveWidget {
   h: number
   binding?: WidgetBinding
   options?: WidgetOptions
+  /** Preserve client id across save so parentId references stay valid. */
+  id?: string
+  parentId?: string | null
+  tabKey?: string | null
 }
 export interface SaveDashboardRequest {
   name: string
@@ -117,69 +127,85 @@ export const refreshSystemLayouts = () =>
     {},
   )
 
-/** True when a wizard dashboard predates v7.1 wall-fit template layouts. */
+/** True when a wizard dashboard predates v8 curated template layouts. */
 export function isSystemLayoutStale(d: Dashboard): boolean {
   const types = d.widgets.map((w) => w.type)
   const set = new Set(types)
   const maxRow = d.widgets.reduce((m, w) => Math.max(m, w.y + w.h), 0)
+  const name = d.name
+  const suffix = (() => {
+    const em = name.lastIndexOf(' — ')
+    const ascii = name.lastIndexOf(' - ')
+    if (em >= 0) return name.slice(em + 3)
+    if (ascii >= 0) return name.slice(ascii + 3)
+    return null
+  })()
+
   const isKiosk =
     d.scope === 'PublicKiosk' ||
-    d.name === 'Operator Kiosk' ||
-    d.name === 'Line Andon Wall' ||
-    d.name === 'Maintenance Wallboard' ||
-    d.name.endsWith(' — Andon') ||
-    d.name.endsWith(' — Operator Kiosk')
+    name === 'Operator Floor' ||
+    name === 'Operator Kiosk' ||
+    name === 'Line Andon' ||
+    name === 'Line Andon Wall' ||
+    name === 'Maintenance Wall' ||
+    name === 'Maintenance Wallboard' ||
+    suffix === 'Andon' ||
+    suffix === 'Operator Floor' ||
+    suffix === 'Operator Kiosk'
 
   if (isKiosk && maxRow > 8) return true
   if (!isKiosk && maxRow > 9) return true
 
-  if (d.name.endsWith(' — Andon')) {
-    return !set.has('oee-traffic-light') || !set.has('shift-context-strip') || !set.has('marquee-ticker')
+  // Wizard suffixes / legacy titles — stale until widgets match the remapped v8 fingerprint.
+  if (suffix === 'Andon' || name === 'Line Andon' || name === 'Line Andon Wall') {
+    return !set.has('andon-stack') || !set.has('oee-hero') || set.has('oee-traffic-light')
   }
-  if (d.name.endsWith(' — Operator Kiosk')) {
-    return !set.has('pace-gauge') || !set.has('oee-traffic-light') || !set.has('active-downtime-timer')
+  if (suffix === 'Operator Floor' || suffix === 'Operator Kiosk' || name === 'Operator Floor' || name === 'Operator Kiosk') {
+    return !set.has('pace-gauge') || !set.has('run-state-badge') || !set.has('shift-context-strip')
   }
-  if (d.name.endsWith(' — Detail')) {
-    return !set.has('recipe-product-strip') || !set.has('speed-trend') || set.has('time-series-trend')
+  if (suffix === 'Production' || name === 'Production Board' || name === 'Production & Pace' || name === 'Attainment Tracker') {
+    return !set.has('hourly-production-bar') || !set.has('production-vs-target')
   }
-  if (d.name === 'Executive Briefing' || d.name === 'Executive Summary') {
-    return !set.has('gap-cluster') || set.has('quick-links-bar')
+  if (suffix === 'Quality' || name === 'Quality Pulse' || name === 'Quality & Yield Lab') {
+    return !set.has('scrap-tile') || !set.has('fpy-tile')
   }
-  if (d.name.endsWith(' — Downtime')) {
-    return !set.has('histogram') || !set.has('fault-code-summary')
+  // Overview / Shift / Downtime / Setup / Supervisor all remap → Shift Supervisor
+  if (
+    suffix === 'Supervisor' ||
+    suffix === 'Overview' ||
+    suffix === 'Shift' ||
+    suffix === 'Downtime' ||
+    suffix === 'Setup' ||
+    name === 'Shift Supervisor' ||
+    name === 'Shift Huddle Board' ||
+    name === 'Supervisor Cockpit' ||
+    name === 'Downtime Detective' ||
+    name === 'Setup & Changeover' ||
+    name === 'Line Performance Board' ||
+    name === 'Shift Compare'
+  ) {
+    return !set.has('shift-summary') || !set.has('unassigned-stops-banner')
   }
-  if (d.name.endsWith(' — Production')) {
-    return !set.has('takt-vs-actual') || !set.has('production-vs-target')
+  if (suffix === 'Detail' || name === 'Machine Station Detail') {
+    return !set.has('hourly-production-bar') || !set.has('production-vs-target')
   }
-  if (d.name.endsWith(' — Quality')) {
-    return !set.has('losses-donut') || types.length > 12
+  if (name === 'Maintenance Wall' || name === 'Maintenance Wallboard' || name === 'Maintenance / Fault Focus' || name === 'Plant Reliability Hub' || suffix === 'Maintenance Board') {
+    return !set.has('mttr-tile') || !set.has('unassigned-stops-banner')
   }
-  if (d.name.endsWith(' — Supervisor')) {
-    return !set.has('unassigned-stops-banner') || !set.has('top-n-table')
+  if (
+    name === 'Plant Overview' ||
+    name === 'Plant Command Center' ||
+    name === 'Executive Briefing' ||
+    name === 'Executive Summary' ||
+    name === 'Floor At-a-Glance' ||
+    name === 'Multi-Line Overview' ||
+    name === 'TEEP & Utilization' ||
+    name === 'TEEP Utilization'
+  ) {
+    return !set.has('line-status-strip') || !set.has('plant-grid')
   }
-  if (d.name.endsWith(' — Setup')) {
-    return !set.has('state-time-breakdown') || !set.has('state-distribution')
-  }
-  if (d.name === 'TEEP & Utilization' || d.name === 'TEEP Utilization') {
-    return !set.has('oee-by-shift') || !set.has('teep-tile')
-  }
-  if (d.name === 'Maintenance Wallboard') {
-    return !set.has('marquee-ticker') || !set.has('mttr-tile')
-  }
-  if (d.name.endsWith(' — Overview')) {
-    return !set.has('attainment-tile') || !set.has('gap-cluster')
-  }
-  if (d.name.endsWith(' — Shift')) {
-    return !set.has('shift-summary') || (!set.has('pace-gauge') && !set.has('target-pace-tile'))
-  }
-  if (d.name === 'Plant Command Center' || d.name === 'Plant Overview') {
-    return !set.has('line-status-strip') || set.has('quick-links-bar')
-  }
-  if (d.name === 'Floor At-a-Glance' || d.name === 'Multi-Line Overview') {
-    return !set.has('machine-grid') || !set.has('line-status-strip')
-  }
-  if (d.name === 'Plant Reliability Hub' || d.name === 'Maintenance / Fault Focus') {
-    return !set.has('active-downtime-timer') || !set.has('unassigned-stops-banner')
+  if (name === 'Analytics Starter') {
+    return !set.has('multi-trend') || !set.has('pareto')
   }
 
   return false

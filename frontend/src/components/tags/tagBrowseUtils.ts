@@ -11,6 +11,8 @@ export function tagTypeColor(t: string): string {
       return 'grape'
     case 'Int':
     case 'Dint':
+    case 'UInt':
+    case 'Time':
       return 'blue'
     case 'Real':
       return 'teal'
@@ -25,10 +27,13 @@ export function tagTypeColor(t: string): string {
   }
 }
 
-/** Human label for a browse node type — UDT containers show their type name. */
+/** Human label for a browse node type — prefer CIP label from the driver when present. */
 export function tagTypeLabel(tag: BrowseTag): string {
   if (tag.dataType === 'Udt' && tag.udtTypeName) return tag.udtTypeName
   if (tag.dataType === 'Array' && tag.udtTypeName) return `${tag.udtTypeName}[${tag.arrayLength}]`
+  if (tag.description && tag.dataType !== 'Udt' && tag.dataType !== 'Array') {
+    return tag.arrayLength > 0 ? `${tag.description}[${tag.arrayLength}]` : tag.description
+  }
   return tag.dataType + (tag.arrayLength > 0 ? `[${tag.arrayLength}]` : '')
 }
 

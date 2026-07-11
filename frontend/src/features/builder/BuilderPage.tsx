@@ -17,6 +17,7 @@ import {
   type SaveDashboardRequest,
 } from '../../lib/dashboards'
 import { getHierarchyTree, type PlantNode } from '../../lib/hierarchy'
+import { buildLineTopologyByLineId } from '../../lib/lineTopology'
 import { useLiveSnapshots } from '../../lib/useLiveSnapshots'
 import { useAuth } from '../../lib/auth'
 import { Permissions } from '../../lib/permissions'
@@ -32,6 +33,15 @@ import { TemplateGalleryDrawer } from './TemplateGalleryDrawer'
 import { SaveTemplateModal } from './SaveTemplateModal'
 import { useBuilderHistory } from './useBuilderHistory'
 import { clickAddPosition, createWidget } from './widgetFactory'
+import { flavorDefaultsForType } from './defaultFlavors'
+import { cascadeRemove, childrenOf, isNestHostType, rootWidgets } from '../../lib/widgetNesting'
+import {
+  LAYOUT_SNIPPETS,
+  packWidgetsOnGrid,
+  resolveSnippetTypes,
+  suggestedWidgetTypes,
+} from './suggestedWidgets'
+import type { PaletteAddPayload } from './WidgetPalette'
 
 export function BuilderPage() {
   const { id: routeId } = useParams()
@@ -56,7 +66,10 @@ export function BuilderPage() {
   const [tplOpen, setTplOpen] = useState(false)
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [fullWidgetDrag, setFullWidgetDrag] = useState(true)
+  const [immersiveEdit, setImmersiveEdit] = useState(true)
   const [displayProfile, setDisplayProfile] = useState<DisplayProfileId>('plantWall')
+  const [paletteDragPayload, setPaletteDragPayload] = useState<PaletteAddPayload | null>(null)
+  const [browseAllSignal, setBrowseAllSignal] = useState(0)
 
   const { widgets, setWidgets, replaceWidgets, undo, redo, canUndo, canRedo } = useBuilderHistory([])
   const dirty = useRef(false)
@@ -72,6 +85,16 @@ export function BuilderPage() {
 
   useEffect(() => {
     void getHierarchyTree().then(setTree).catch(() => undefined)
+  }, [])
+
+  // Re-fetch hierarchy when returning to the builder tab so bind lists stay real
+  // (palette previews must never swap this for Demo Plant mocks).
+  useEffect(() => {
+    const onFocus = () => {
+      void getHierarchyTree().then(setTree).catch(() => undefined)
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
   useEffect(() => {
@@ -103,11 +126,34 @@ export function BuilderPage() {
   }, [tree, plantId])
 
   const ctx: WidgetCtx = useMemo(() => {
-    let lineSnapshots = lineId ? snapshots.filter((s) => s.lineId === lineId) : snapshots
-    if (plantId && plantLineIds) lineSnapshots = snapshots.filter((s) => plantLineIds.has(s.lineId.toLowerCase()))
-    const snapshot = machineId ? snapshots.find((s) => s.machineId === machineId) : lineSnapshots[0]
-    return { lineId, machineId, plantId, snapshot, lineSnapshots, hubConnected }
-  }, [snapshots, hubConnected, lineId, machineId, plantId, plantLineIds])
+    // Most-specific scope wins: machine → line → plant → all.
+    let lineSnapshots = snapshots
+    if (machineId) {
+      lineSnapshots = snapshots.filter((s) => s.machineId === machineId)
+    } else if (lineId) {
+      lineSnapshots = snapshots.filter((s) => s.lineId === lineId)
+    } else if (plantId && plantLineIds) {
+      lineSnapshots = snapshots.filter((s) => plantLineIds.has(s.lineId.toLowerCase()))
+    }
+    const snapshot = machineId
+      ? lineSnapshots.find((s) => s.machineId === machineId) ?? lineSnapshots[0]
+      : lineSnapshots[0]
+    // Wall/kiosk profiles must match floor rendering (hidden frame header, label in content,
+    // kiosk ring sizes) so edit and preview stay WYSIWYG.
+    const wallLike = displayProfile !== 'builderFreeform'
+    return {
+      lineId,
+      machineId,
+      plantId,
+      snapshot,
+      lineSnapshots,
+      hubConnected,
+      lineTopologyByLineId: buildLineTopologyByLineId(tree),
+      wallBoard: wallLike,
+      density: wallLike ? 'kiosk' : 'normal',
+      allowInteractiveWrites: false,
+    }
+  }, [snapshots, hubConnected, lineId, machineId, plantId, plantLineIds, tree, displayProfile])
 
   const selected = widgets.find((w) => w.id === selectedId) ?? null
   const maxRow = dashboardMaxRow(widgets)
@@ -138,6 +184,7 @@ export function BuilderPage() {
       widgets: widgets
         .sort((a, b) => a.y - b.y || a.x - b.x)
         .map((w) => ({
+          id: w.id,
           type: w.type,
           title: w.title,
           x: w.x,
@@ -146,6 +193,8 @@ export function BuilderPage() {
           h: w.h,
           binding: w.binding,
           options: w.options,
+          parentId: w.parentId ?? null,
+          tabKey: w.tabKey ?? null,
         })),
     }
   }, [name, scope, isPublished, plantId, lineId, machineId, widgets])
@@ -182,24 +231,103 @@ export function BuilderPage() {
   )
 
   const addWidgetAt = useCallback(
-    (type: string, x?: number, y?: number) => {
-      const maxRow = widgets.reduce((m, w) => Math.max(m, w.y + w.h), 0)
-      const pos = x !== undefined && y !== undefined ? { x, y } : clickAddPosition(type, widgets)
-      const nw = createWidget(type, bindCtx, pos, maxRow)
+    (type: string, x?: number, y?: number, optionOverrides?: PaletteAddPayload['options']) => {
+      const selected = selectedId ? widgets.find((w) => w.id === selectedId) : undefined
+      const nestParent =
+        selected && isNestHostType(selected.type)
+          ? selected
+          : selected?.parentId
+            ? widgets.find((w) => w.id === selected.parentId && isNestHostType(w.type))
+            : undefined
+
+      if (nestParent && isNestHostType(type)) {
+        notifications.show({
+          message: 'Containers cannot be nested inside other containers',
+          color: 'orange',
+        })
+        return
+      }
+
+      if (nestParent) {
+        const siblings = childrenOf(
+          widgets,
+          nestParent.id,
+          nestParent.type === 'tabbed-panel' ? (selected?.tabKey ?? '0') : undefined,
+        )
+        const maxRow = siblings.reduce((m, w) => Math.max(m, w.y + w.h), 0)
+        const flavors = optionOverrides ?? flavorDefaultsForType(type, displayProfile)
+        const nw = createWidget(type, bindCtx, { x: 0, y: maxRow }, maxRow, flavors)
+        nw.parentId = nestParent.id
+        if (nestParent.type === 'tabbed-panel') {
+          nw.tabKey = selected?.parentId === nestParent.id ? selected.tabKey ?? '0' : '0'
+        }
+        setWidgets((prev) => [...prev, nw], true)
+        setSelectedId(nw.id)
+        markDirty()
+        return
+      }
+
+      const roots = rootWidgets(widgets)
+      const maxRow = roots.reduce((m, w) => Math.max(m, w.y + w.h), 0)
+      const pos = x !== undefined && y !== undefined ? { x, y } : clickAddPosition(type, roots)
+      const flavors = optionOverrides ?? flavorDefaultsForType(type, displayProfile)
+      const nw = createWidget(type, bindCtx, pos, maxRow, flavors)
       setWidgets((prev) => [...prev, nw], true)
       setSelectedId(nw.id)
       markDirty()
     },
-    [widgets, bindCtx, setWidgets, markDirty],
+    [widgets, bindCtx, setWidgets, markDirty, displayProfile, selectedId],
+  )
+
+  const addSuggestedWidgets = useCallback(() => {
+    const types = suggestedWidgetTypes({
+      displayProfile,
+      plantId,
+      lineId,
+      machineId,
+    })
+    const maxRow = widgets.reduce((m, w) => Math.max(m, w.y + w.h), 0)
+    const packed = packWidgetsOnGrid(types, bindCtx, displayProfile, maxRow)
+    if (packed.length === 0) return
+    setWidgets((prev) => [...prev, ...packed], true)
+    setSelectedId(packed[0]?.id ?? null)
+    markDirty()
+  }, [displayProfile, plantId, lineId, machineId, widgets, bindCtx, setWidgets, markDirty])
+
+  const addSnippet = useCallback(
+    (snippetId: string) => {
+      const snip = LAYOUT_SNIPPETS.find((s) => s.id === snippetId)
+      if (!snip) return
+      const types = resolveSnippetTypes(snip)
+      const maxRow = widgets.reduce((m, w) => Math.max(m, w.y + w.h), 0)
+      const packed = packWidgetsOnGrid(types, bindCtx, displayProfile, maxRow)
+      // KPI strip: set distinct fields on successive kpi-tiles
+      if (snippetId === 'kpi-strip') {
+        const fields = ['oeePct', 'availabilityPct', 'performancePct', 'qualityPct']
+        packed.forEach((w, i) => {
+          if (w.type === 'kpi-tile' && fields[i]) {
+            w.binding = { ...w.binding, field: fields[i], bindingKind: 'snapshot', source: w.binding.source ?? 'line' }
+            w.title = fields[i].replace('Pct', '').toUpperCase()
+          }
+        })
+      }
+      if (packed.length === 0) return
+      setWidgets((prev) => [...prev, ...packed], true)
+      setSelectedId(packed[0]?.id ?? null)
+      markDirty()
+    },
+    [widgets, bindCtx, displayProfile, setWidgets, markDirty],
   )
 
   const removeWidget = useCallback(
     (id: string) => {
-      setWidgets((prev) => prev.filter((w) => w.id !== id), true)
-      if (selectedId === id) setSelectedId(null)
+      setWidgets((prev) => cascadeRemove(prev, id), true)
+      if (selectedId === id || widgets.some((w) => w.id === selectedId && w.parentId === id)) {
+        setSelectedId(null)
+      }
       markDirty()
     },
-    [setWidgets, selectedId, markDirty],
+    [setWidgets, selectedId, markDirty, widgets],
   )
 
   const duplicateWidget = useCallback(
@@ -216,8 +344,22 @@ export function BuilderPage() {
         copy.options = structuredClone(src.options)
         copy.w = src.w
         copy.h = src.h
+        copy.parentId = src.parentId
+        copy.tabKey = src.tabKey
+        const kids = childrenOf(prev, src.id)
+        const childCopies: DashboardWidget[] = kids.map((c) => {
+          const cc = createWidget(c.type, bindCtx, { x: c.x, y: c.y })
+          cc.title = c.title
+          cc.binding = structuredClone(c.binding)
+          cc.options = structuredClone(c.options)
+          cc.w = c.w
+          cc.h = c.h
+          cc.parentId = copy.id
+          cc.tabKey = c.tabKey
+          return cc
+        })
         setSelectedId(copy.id)
-        return [...prev, copy]
+        return [...prev, copy, ...childCopies]
       }, true)
       markDirty()
     },
@@ -399,6 +541,8 @@ export function BuilderPage() {
         onRedo={redo}
         fullWidgetDrag={fullWidgetDrag}
         onFullWidgetDragChange={setFullWidgetDrag}
+        immersiveEdit={immersiveEdit}
+        onImmersiveEditChange={setImmersiveEdit}
       />
 
       {!dashId && widgets.length > 0 ? (
@@ -408,24 +552,47 @@ export function BuilderPage() {
       ) : null}
 
       <Group align="stretch" gap="sm" wrap="nowrap" style={{ flex: 1, minHeight: 0 }}>
-        {!previewMode ? <WidgetPalette onAdd={(type) => addWidgetAt(type)} /> : null}
+        {!previewMode ? (
+          <WidgetPalette
+            displayProfile={displayProfile}
+            plantId={plantId}
+            lineId={lineId}
+            machineId={machineId}
+            onAdd={(payload) => addWidgetAt(payload.type, undefined, undefined, payload.options)}
+            onAddSuggested={addSuggestedWidgets}
+            onAddSnippet={addSnippet}
+            onDragPayloadChange={setPaletteDragPayload}
+            browseAllSignal={browseAllSignal}
+          />
+        ) : null}
         <BuilderCanvas
           widgets={widgets}
           selectedId={selectedId}
           previewMode={previewMode}
           displayProfile={displayProfile}
+          immersiveEdit={immersiveEdit}
           fullWidgetDrag={fullWidgetDrag}
+          paletteDragType={paletteDragPayload?.type ?? null}
           ctx={ctx}
           dashboardPreview={dashboardPreview}
+          hasScope={!!(plantId || lineId || machineId)}
           onSelect={setSelectedId}
           onLayoutChange={handleLayoutChange}
           onRemove={removeWidget}
           onDuplicate={duplicateWidget}
-          onAddAt={addWidgetAt}
+          onPatchWidget={patchWidget}
+          onAddAt={(type, x, y, options) =>
+            addWidgetAt(type, x, y, options ?? paletteDragPayload?.options)
+          }
+          onPaletteDragEnd={() => setPaletteDragPayload(null)}
+          onOpenTemplates={() => setGalleryOpen(true)}
+          onAddSuggested={addSuggestedWidgets}
+          onBrowseGallery={() => setBrowseAllSignal((n) => n + 1)}
         />
-        {!previewMode ? (
+        {!previewMode && selected ? (
           <PropertiesPanel
             widget={selected}
+            widgets={widgets}
             machineId={machineId}
             lineId={lineId}
             ctx={ctx}

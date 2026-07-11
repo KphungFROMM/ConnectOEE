@@ -15,7 +15,7 @@ import {
   SimpleGrid,
 } from '@mantine/core'
 import { IconAlertCircle, IconDeviceDesktop } from '@tabler/icons-react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { defaultHomePath } from '../lib/permissions'
 import { getSetupStatus } from '../lib/setup'
@@ -30,10 +30,18 @@ interface LocationState {
   from?: { pathname?: string }
 }
 
+function safeReturnPath(raw: string | null): string | null {
+  if (!raw) return null
+  // Only allow same-origin relative paths (blocks open redirects).
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null
+  return raw
+}
+
 export function LoginPage() {
   const { login, loginTwoFactor, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -46,7 +54,10 @@ export function LoginPage() {
   const [selectedKiosk, setSelectedKiosk] = useState<string | null>(null)
   const [savedKioskId, setSavedKioskId] = useState<string | null>(() => getKioskDefaultId())
 
-  const from = (location.state as LocationState)?.from?.pathname ?? defaultHomePath(user)
+  const from =
+    safeReturnPath(searchParams.get('returnUrl')) ??
+    (location.state as LocationState)?.from?.pathname ??
+    defaultHomePath(user)
 
   useEffect(() => {
     void getSetupStatus().then((s) => {

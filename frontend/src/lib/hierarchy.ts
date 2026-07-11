@@ -33,6 +33,10 @@ export interface LineNode {
   kpi: NodeKpi
   machines: MachineNode[]
   activeProductCode?: string | null
+  topology?: import('./lineTopology').LineTopologyMode
+  lineOutputMachineId?: string | null
+  pacingMachineId?: string | null
+  lineOutputMachineName?: string | null
 }
 export interface DeptNode {
   id: string
@@ -71,9 +75,84 @@ export interface ProductChangeLog {
   changedUtc: string
 }
 
+export type HierarchyLevel = 'Plant' | 'Department' | 'Line' | 'Machine'
+
+/** A single hierarchy node flattened out of the nested tree, with its ancestry kept alongside for search/breadcrumb use. */
+export interface FlatHierarchyNode {
+  level: HierarchyLevel
+  id: string
+  name: string
+  kpi: NodeKpi
+  plantId: string
+  plantName: string
+  deptId?: string
+  deptName?: string
+  lineId?: string
+  lineName?: string
+  activeProductCode?: string | null
+  /** Ancestor names joined "Plant › Dept › Line" (excludes the node itself) — disambiguates same-named nodes (e.g. every line has a "Washing" machine). */
+  parentPath?: string
+  topology?: import('./lineTopology').LineTopologyMode
+  lineOutputMachineName?: string | null
+}
+
+/** Flatten Plant→Department→Line→Machine into a single searchable/indexable list. */
+export function flattenHierarchyTree(tree: PlantNode[]): FlatHierarchyNode[] {
+  const out: FlatHierarchyNode[] = []
+  for (const plant of tree) {
+    out.push({ level: 'Plant', id: plant.id, name: plant.name, kpi: plant.kpi, plantId: plant.id, plantName: plant.name })
+    for (const dept of plant.departments) {
+      out.push({
+        level: 'Department',
+        id: dept.id,
+        name: dept.name,
+        kpi: dept.kpi,
+        plantId: plant.id,
+        plantName: plant.name,
+        deptId: dept.id,
+        deptName: dept.name,
+        parentPath: plant.name,
+      })
+      for (const line of dept.lines) {
+        out.push({
+          level: 'Line',
+          id: line.id,
+          name: line.name,
+          kpi: line.kpi,
+          plantId: plant.id,
+          plantName: plant.name,
+          deptId: dept.id,
+          deptName: dept.name,
+          lineId: line.id,
+          lineName: line.name,
+          activeProductCode: line.activeProductCode ?? line.kpi.activeRecipeCode,
+          parentPath: `${plant.name} › ${dept.name}`,
+          topology: line.topology,
+          lineOutputMachineName: line.lineOutputMachineName,
+        })
+        for (const machine of line.machines) {
+          out.push({
+            level: 'Machine',
+            id: machine.id,
+            name: machine.name,
+            kpi: machine.kpi,
+            plantId: plant.id,
+            plantName: plant.name,
+            deptId: dept.id,
+            deptName: dept.name,
+            lineId: line.id,
+            lineName: line.name,
+            parentPath: `${plant.name} › ${dept.name} › ${line.name}`,
+          })
+        }
+      }
+    }
+  }
+  return out
+}
+
 export const getHierarchyTree = () =>
   isAuditApiMode() ? Promise.resolve(mockHierarchyTree()) : apiGet<PlantNode[]>('/api/hierarchy/tree')
-export const getOperatorStations = () =>
-  isAuditApiMode() ? Promise.resolve(mockHierarchyTree()) : apiGet<PlantNode[]>('/api/hierarchy/stations')
+export const getOperatorStations = () => apiGet<PlantNode[]>('/api/hierarchy/stations')
 export const getLineProductionContext = (lineId: string) =>
   apiGet<ProductionContext>(`/api/hierarchy/lines/${lineId}/production-context`)

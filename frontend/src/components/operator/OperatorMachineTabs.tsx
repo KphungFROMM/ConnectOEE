@@ -1,4 +1,4 @@
-import { ScrollArea, SegmentedControl } from '@mantine/core'
+import { Badge, Group, ScrollArea, SegmentedControl, Text } from '@mantine/core'
 import { stateColor } from '../widgets/common'
 import type { OperatorStation } from '../../lib/useOperatorStations'
 
@@ -19,7 +19,16 @@ export function OperatorMachineTabs({ stations, value, onChange }: Props) {
         fullWidth
         data={stations.map((s) => ({
           value: s.machineId,
-          label: s.machineName,
+          label: s.isLineOutput ? (
+            <Group gap={4} wrap="nowrap" justify="center">
+              <Text size="sm">{s.machineName}</Text>
+              <Badge size="xs" color="grape" variant="light">
+                Output
+              </Badge>
+            </Group>
+          ) : (
+            s.machineName
+          ),
         }))}
         color={stateColor(stations.find((s) => s.machineId === value)?.snapshot.state)}
       />

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -10,4 +10,7 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="8.0.10" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\ConnectLicenseGen\src\Connect.Licensing.Core\Connect.Licensing.Core.csproj" />
+  </ItemGroup>
 </Project>

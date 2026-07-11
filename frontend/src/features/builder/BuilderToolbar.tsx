@@ -23,6 +23,7 @@ import {
   IconLayoutGrid,
   IconTemplate,
   IconHandMove,
+  IconMaximize,
 } from '@tabler/icons-react'
 import type { PlantNode } from '../../lib/hierarchy'
 import { DISPLAY_PROFILES, exceedsProfile, type DisplayProfileId } from './displayProfiles'
@@ -60,6 +61,8 @@ interface BuilderToolbarProps {
   onRedo: () => void
   fullWidgetDrag: boolean
   onFullWidgetDragChange: (v: boolean) => void
+  immersiveEdit: boolean
+  onImmersiveEditChange: (v: boolean) => void
 }
 
 export function BuilderToolbar({
@@ -94,6 +97,8 @@ export function BuilderToolbar({
   onRedo,
   fullWidgetDrag,
   onFullWidgetDragChange,
+  immersiveEdit,
+  onImmersiveEditChange,
 }: BuilderToolbarProps) {
   const plantOptions = tree.map((p) => ({ value: p.id, label: p.name }))
   const lineOptions = tree.flatMap((p) =>
@@ -144,6 +149,15 @@ export function BuilderToolbar({
           <Tooltip label="Redo (Ctrl+Shift+Z)">
             <ActionIcon variant="default" onClick={onRedo} disabled={!canRedo} aria-label="Redo">
               <IconArrowForwardUp size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label={immersiveEdit ? 'Immersive edit (wall-like)' : 'Classic editor chrome'}>
+            <ActionIcon
+              variant={immersiveEdit ? 'filled' : 'default'}
+              onClick={() => onImmersiveEditChange(!immersiveEdit)}
+              aria-label="Toggle immersive edit"
+            >
+              <IconMaximize size={16} />
             </ActionIcon>
           </Tooltip>
           <Tooltip label={fullWidgetDrag ? 'Drag entire widget' : 'Drag via title bar only'}>

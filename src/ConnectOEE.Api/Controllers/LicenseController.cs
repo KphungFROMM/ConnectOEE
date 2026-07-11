@@ -27,12 +27,17 @@ public class LicenseController : ControllerBase
         DateTime? ExpiresUtc,
         int MaxPlants,
         int MaxLines,
-        bool RockwellDriverEnabled,
+        bool PlcDriversEnabled,
         bool PdfReportsEnabled,
         bool ScheduledReportsEnabled,
-        int MaxKioskDashboards);
+        int MaxKioskDashboards,
+        string MachineId);
 
     public record ActivateLicenseRequest(string Key);
+
+    [HttpGet("machine-id")]
+    public ActionResult<object> GetMachineId() =>
+        Ok(new { machineId = _license.MachineIdDisplay });
 
     [HttpGet]
     public ActionResult<LicenseStatusDto> GetStatus()
@@ -46,10 +51,11 @@ public class LicenseController : ControllerBase
             _license.ExpiresUtc,
             _license.MaxPlants,
             _license.MaxLines,
-            _license.RockwellDriverEnabled,
+            _license.PlcDriversEnabled,
             _license.PdfReportsEnabled,
             _license.ScheduledReportsEnabled,
-            _license.MaxKioskDashboards));
+            _license.MaxKioskDashboards,
+            _license.MachineIdDisplay));
     }
 
     [HttpPost("activate")]
@@ -57,7 +63,7 @@ public class LicenseController : ControllerBase
     public ActionResult<LicenseStatusDto> Activate([FromBody] ActivateLicenseRequest request)
     {
         if (!_license.ValidateAndActivate(request.Key))
-            return BadRequest(new { message = "Invalid license key. Expected a CONNECT-OEE- key from Connect License Generator." });
+            return BadRequest(new { message = _license.LastActivationError ?? "Invalid license key. Expected a CONNECT-OEE- key from Connect License Generator." });
 
         return GetStatus();
     }

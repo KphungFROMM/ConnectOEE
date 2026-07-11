@@ -24,7 +24,6 @@ import {
   IconBinaryTree2,
   IconChartHistogram,
   IconReportAnalytics,
-  IconTags,
   IconSettings,
   IconSun,
   IconMoon,
@@ -43,6 +42,14 @@ import { useAuth } from '../lib/auth'
 import { Permissions, isOperatorOnly } from '../lib/permissions'
 import { getSetupStatus } from '../lib/setup'
 import { getLicenseStatus, licenseBadgeColor, type LicenseStatus } from '../lib/license'
+import { useAppearance } from '../lib/AppearanceProvider'
+import {
+  DEFAULT_HEADER_LOGO,
+  PRODUCT_NAME,
+  isCustomHeaderTitle,
+  resolveHeaderLogoUrl,
+  resolveHeaderTitle,
+} from '../lib/appearance'
 
 function ThemeToggle() {
   const { setColorScheme } = useMantineColorScheme()
@@ -69,6 +76,10 @@ export function AppLayout() {
   const canOpenAdmin = hasPermission(Permissions.ManageUsers)
   const computed = useComputedColorScheme('light')
   const isDark = computed === 'dark'
+  const { settings: appearance, revision: appearanceRevision } = useAppearance()
+  const headerTitle = resolveHeaderTitle(appearance)
+  const headerLogoUrl = resolveHeaderLogoUrl(appearance)
+  const showProductUnderTitle = isCustomHeaderTitle(appearance)
 
   useClientPresence()
 
@@ -84,63 +95,69 @@ export function AppLayout() {
       .catch(() => undefined)
   }, [])
 
-  // Nav items gated by permission. Operators only see Operator Station.
-  const navItems = [
+  // Sectioned nav for future non-OEE modules. Items gated by permission.
+  const navSections = [
     {
-      label: 'Dashboards',
-      to: '/',
-      icon: IconLayoutDashboard,
-      show: !isOperatorOnly(user),
+      id: 'oee',
+      label: 'OEE',
+      items: [
+        {
+          label: 'Plant Explorer',
+          to: '/plant-explorer',
+          icon: IconBinaryTree2,
+          show: hasPermission(Permissions.ViewPlantExplorer),
+        },
+        {
+          label: 'Dashboards',
+          to: '/',
+          icon: IconLayoutDashboard,
+          show: !isOperatorOnly(user),
+        },
+        {
+          label: 'Builder',
+          to: '/builder',
+          icon: IconLayoutBoardSplit,
+          show: hasPermission(Permissions.BuildDashboards),
+        },
+        {
+          label: 'Analytics',
+          to: '/analytics',
+          icon: IconChartHistogram,
+          show: hasPermission(Permissions.ViewReports),
+        },
+        {
+          label: 'Reports',
+          to: '/reports',
+          icon: IconReportAnalytics,
+          show: hasPermission(Permissions.ViewReports),
+        },
+        {
+          label: 'Operator Station',
+          to: '/operator',
+          icon: IconDeviceDesktop,
+          show: hasPermission(Permissions.EnterDowntimeReason),
+        },
+      ].filter((i) => i.show),
     },
     {
-      label: 'Builder',
-      to: '/builder',
-      icon: IconLayoutBoardSplit,
-      show: hasPermission(Permissions.BuildDashboards),
+      id: 'systems',
+      label: 'Systems',
+      items: [
+        {
+          label: 'Setup Wizard',
+          to: '/wizard',
+          icon: IconWand,
+          show: hasPermission(Permissions.RunWizard) && needsSetup === true,
+        },
+        {
+          label: 'Admin',
+          to: '/admin',
+          icon: IconSettings,
+          show: hasPermission(Permissions.ManageUsers),
+        },
+      ].filter((i) => i.show),
     },
-    {
-      label: 'Plant Explorer',
-      to: '/plant-explorer',
-      icon: IconBinaryTree2,
-      show: hasPermission(Permissions.ViewPlantExplorer),
-    },
-    {
-      label: 'Analytics',
-      to: '/analytics',
-      icon: IconChartHistogram,
-      show: hasPermission(Permissions.ViewReports),
-    },
-    {
-      label: 'Reports',
-      to: '/reports',
-      icon: IconReportAnalytics,
-      show: hasPermission(Permissions.ViewReports),
-    },
-    {
-      label: 'Tag Browser',
-      to: '/tags',
-      icon: IconTags,
-      show: hasPermission(Permissions.BrowseTags),
-    },
-    {
-      label: 'Operator Station',
-      to: '/operator',
-      icon: IconDeviceDesktop,
-      show: hasPermission(Permissions.EnterDowntimeReason),
-    },
-    {
-      label: 'Setup Wizard',
-      to: '/wizard',
-      icon: IconWand,
-      show: hasPermission(Permissions.RunWizard) && needsSetup === true,
-    },
-    {
-      label: 'Admin',
-      to: '/admin',
-      icon: IconSettings,
-      show: hasPermission(Permissions.ManageUsers),
-    },
-  ].filter((i) => i.show)
+  ].filter((s) => s.items.length > 0)
 
   return (
     <AppShell
@@ -163,13 +180,33 @@ export function AppLayout() {
                 lineHeight: 0,
               }}
             >
-              <img src="/app-icon.png" alt="ConnectOEE" width={28} height={28} />
+              <img
+                src={headerLogoUrl}
+                alt={headerTitle}
+                width={28}
+                height={28}
+                style={{ objectFit: 'contain', display: 'block' }}
+                onError={(e) => {
+                  const img = e.currentTarget
+                  if (img.src.endsWith(DEFAULT_HEADER_LOGO)) return
+                  img.src = DEFAULT_HEADER_LOGO
+                }}
+              />
             </Box>
-            <Title order={4}>ConnectOEE</Title>
+            <Box>
+              <Title order={4} lh={1.1}>
+                {headerTitle}
+              </Title>
+              {showProductUnderTitle ? (
+                <Text size="xs" c="dimmed" lh={1.2}>
+                  {PRODUCT_NAME}
+                </Text>
+              ) : null}
+            </Box>
           </Group>
           <Group gap="md" wrap="nowrap">
             <ShiftClock />
-            <ConnectionIndicator status={status} lastChecked={lastChecked} />
+            <ConnectionIndicator key={appearanceRevision} status={status} lastChecked={lastChecked} />
             <ActionIcon variant="default" size="lg" aria-label="Help" onClick={openHelp}>
               <IconHelpCircle size={18} />
             </ActionIcon>
@@ -203,27 +240,38 @@ export function AppLayout() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="xs">
-        <Text size="xs" tt="uppercase" fw={700} c="dimmed" px="sm" py={6}>
-          Navigation
-        </Text>
-        {navItems.map((item) => {
-          const active =
-            item.to === '/'
-              ? location.pathname === '/' || location.pathname.startsWith('/dashboards/')
-              : location.pathname.startsWith(item.to)
-          const Icon = item.icon
-          return (
-            <NavLink
-              key={item.to}
-              component={Link}
-              to={item.to}
-              label={item.label}
-              leftSection={<Icon size={18} />}
-              active={active}
-            />
-          )
-        })}
+      <AppShell.Navbar p="xs" style={{ display: 'flex', flexDirection: 'column' }}>
+        {navSections.map((section) => (
+          <Box key={section.id} mb={section.id === 'systems' ? 0 : 8}>
+            <Text size="xs" tt="uppercase" fw={700} c="dimmed" px="sm" py={6}>
+              {section.label}
+            </Text>
+            {section.items.map((item) => {
+              const active =
+                item.to === '/'
+                  ? location.pathname === '/' || location.pathname.startsWith('/dashboards/')
+                  : location.pathname.startsWith(item.to)
+              const Icon = item.icon
+              return (
+                <NavLink
+                  key={item.to}
+                  component={Link}
+                  to={item.to}
+                  label={item.label}
+                  leftSection={<Icon size={18} />}
+                  active={active}
+                />
+              )
+            })}
+          </Box>
+        ))}
+        {/* Product mark always present when customers rebrand the header. */}
+        <Group gap={6} wrap="nowrap" mt="auto" px="sm" py="sm">
+          <img src={DEFAULT_HEADER_LOGO} alt="" width={14} height={14} style={{ opacity: 0.85 }} />
+          <Text size="xs" c="dimmed">
+            {PRODUCT_NAME}
+          </Text>
+        </Group>
       </AppShell.Navbar>
 
       <AppShell.Main>

@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react'
-import { Badge, Box, Group, ScrollArea, Stack, Text, TextInput } from '@mantine/core'
+import { Badge, Box, Group, Loader, Progress, ScrollArea, Stack, Text, TextInput } from '@mantine/core'
 import { IconChevronDown, IconChevronRight, IconSearch } from '@tabler/icons-react'
 import type { BrowseTag, FlatRow, TagValueSample } from '../../lib/tags'
 import { TAG_ROW_H, TAG_VIEWPORT_H, formatTagValue, tagTypeColor, tagTypeLabel } from './tagBrowseUtils'
+import type { TagBrowseLoadingProgress } from './useTagBrowse'
 
 const VIRTUALIZE_THRESHOLD = 250
 
 interface TagBrowseTreeProps {
   supportsBrowsing: boolean
   loading: boolean
+  loadingProgress?: TagBrowseLoadingProgress | null
   filter: string
   onFilterChange: (value: string) => void
   rows: FlatRow[]
@@ -20,11 +22,13 @@ interface TagBrowseTreeProps {
   onScrollTopChange: (y: number) => void
   viewportHeight?: number
   compact?: boolean
+  searchPlaceholder?: string
 }
 
 export function TagBrowseTree({
   supportsBrowsing,
   loading,
+  loadingProgress = null,
   filter,
   onFilterChange,
   rows,
@@ -36,6 +40,7 @@ export function TagBrowseTree({
   onScrollTopChange,
   viewportHeight = TAG_VIEWPORT_H,
   compact = false,
+  searchPlaceholder = 'Search by name, path, or UDT type',
 }: TagBrowseTreeProps) {
   const rowH = compact ? 30 : TAG_ROW_H
   const total = rows.length
@@ -141,7 +146,7 @@ export function TagBrowseTree({
   return (
     <Stack gap="xs">
       <TextInput
-        placeholder="Search by name, path, or UDT type"
+        placeholder={searchPlaceholder}
         leftSection={<IconSearch size={16} />}
         value={filter}
         onChange={(e) => onFilterChange(e.currentTarget.value)}
@@ -149,9 +154,26 @@ export function TagBrowseTree({
         size={compact ? 'xs' : 'sm'}
       />
       {loading ? (
-        <Text size="sm" c="dimmed">
-          Loading tags…
-        </Text>
+        <Stack gap="xs" py="sm">
+          <Group gap="sm" wrap="nowrap">
+            <Loader size="sm" />
+            <Text size="sm" c="dimmed" style={{ flex: 1 }} lineClamp={2}>
+              {loadingProgress?.message ?? 'Loading tags…'}
+            </Text>
+            {loadingProgress != null ? (
+              <Text size="sm" fw={600} ff="monospace" style={{ flexShrink: 0 }}>
+                {Math.round(loadingProgress.percent)}%
+              </Text>
+            ) : null}
+          </Group>
+          <Progress
+            value={loadingProgress?.percent ?? 100}
+            animated
+            striped={loadingProgress == null || loadingProgress.percent < 100}
+            size="sm"
+            radius="sm"
+          />
+        </Stack>
       ) : !supportsBrowsing ? (
         <Text size="sm" c="dimmed">
           No browsable tags for this connection.

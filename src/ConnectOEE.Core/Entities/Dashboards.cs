@@ -45,6 +45,12 @@ public class Widget : EntityBase
     public int W { get; set; } = 2;
     public int H { get; set; } = 2;
 
+    /// <summary>Parent container/tab widget id; null = root grid. One nesting level only.</summary>
+    public Guid? ParentId { get; set; }
+    /// <summary>For tabbed-panel children: tab key matching options.tabs index (e.g. "0").</summary>
+    [MaxLength(64)]
+    public string? TabKey { get; set; }
+
     /// <summary>Binding descriptor (logical signal / KPI / aggregate) as JSON.</summary>
     public string BindingJson { get; set; } = "{}";
     /// <summary>Threshold/alarm/units/colors config as JSON.</summary>

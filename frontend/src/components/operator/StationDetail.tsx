@@ -2,8 +2,9 @@ import { setDowntimeReason, type DowntimeEvent } from '../../lib/metrics'
 import { isChangeoverReason } from '../../lib/productChange'
 import { useAuth } from '../../lib/auth'
 import { Permissions } from '../../lib/permissions'
+import { sendPlcCommand } from '../../lib/admin'
 import { notifications } from '@mantine/notifications'
-import { Stack } from '@mantine/core'
+import { Button, Stack } from '@mantine/core'
 import { DowntimeActionBanner } from './DowntimeActionBanner'
 import { OperatorMachineHero } from './OperatorMachineHero'
 import { OperatorProductStrip } from './OperatorProductStrip'
@@ -27,6 +28,7 @@ export function StationDetail({
 }: Props) {
   const { hasPermission } = useAuth()
   const canSelect = hasPermission(Permissions.SelectProduct)
+  const canPlcWrite = hasPermission(Permissions.PlcWrite)
   const machine = station.snapshot
 
   const needsReason = machine.state === 'Down' && !!pendingEvent
@@ -43,6 +45,15 @@ export function StationDetail({
       }
     } catch {
       notifications.show({ message: 'Failed to record reason', color: 'red' })
+    }
+  }
+
+  async function ackFault() {
+    try {
+      await sendPlcCommand(station.machineId, 'Ack')
+      notifications.show({ message: 'Fault acknowledged', color: 'green' })
+    } catch {
+      notifications.show({ message: 'Ack failed — check control tag mapping', color: 'red' })
     }
   }
 
@@ -66,6 +77,12 @@ export function StationDetail({
       />
 
       <OperatorMachineHero machine={machine} />
+
+      {canPlcWrite ? (
+        <Button color="orange" size="md" radius="md" onClick={() => void ackFault()} fullWidth>
+          Acknowledge fault
+        </Button>
+      ) : null}
 
       <ShiftTargetStrip machine={machine} />
     </Stack>

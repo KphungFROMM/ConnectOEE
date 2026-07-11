@@ -93,11 +93,11 @@ async function send<T>(method: string, path: string, body?: unknown): Promise<T>
 
 
   if (res.status === 401) {
-
-    onUnauthorized?.()
-
-    throw new Error('Session expired — please sign in again')
-
+    // Kiosk/anonymous endpoints use cookie auth; do not treat as "session expired" login bounce.
+    if (!path.includes('/api/dashboards/kiosk/')) {
+      onUnauthorized?.()
+    }
+    throw new Error(await readErrorMessage(res, 'Session expired — please sign in again'))
   }
 
 

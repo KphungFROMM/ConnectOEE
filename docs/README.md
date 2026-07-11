@@ -19,6 +19,7 @@ Start with the root [AGENTS.md](../AGENTS.md) for the high-level summary and loc
 | [09-tag-browser-mapping.md](09-tag-browser-mapping.md) | Live tag browser and tag mapping UI |
 | [10-dashboards-widgets-templates.md](10-dashboards-widgets-templates.md) | Widget library and ready-to-go templates |
 | [11-wysiwyg-builder.md](11-wysiwyg-builder.md) | WYSIWYG dashboard builder |
+| [BUILDER-GALLERY-2026-07.md](BUILDER-GALLERY-2026-07.md) | Builder live gallery + intuition spike (Jul 2026) |
 | [12-historian-query-reporting.md](12-historian-query-reporting.md) | Historian, query engine, reporting |
 | [13-startup-wizard.md](13-startup-wizard.md) | Guided startup wizard |
 | [14-roadmap-phases.md](14-roadmap-phases.md) | Phased build roadmap (sequencing source of truth) |
@@ -26,6 +27,19 @@ Start with the root [AGENTS.md](../AGENTS.md) for the high-level summary and loc
 | [16-factory-deployment-security.md](16-factory-deployment-security.md) | Factory floor TLS, network, secrets, security commissioning |
 | [17-licensing.md](17-licensing.md) | Offline license keys, trial limits, activation |
 | [MOVING-TO-ANOTHER-PC.md](MOVING-TO-ANOTHER-PC.md) | How to continue the project on a different computer |
+| [COMMISSION-BUILDER-2026-07.md](COMMISSION-BUILDER-2026-07.md) | Builder DnD + widget gallery commission (Jul 2026) |
+| [WIDGET-AUDIT-2026-07.md](WIDGET-AUDIT-2026-07.md) | Widget visual audit gallery results |
+| [WIDGET-COMMISSION-2026-07.md](WIDGET-COMMISSION-2026-07.md) | Full 111-widget commission summary (Jul 2026) |
+| [WIDGET-COMMISSION-SCORECARD-2026-07.md](WIDGET-COMMISSION-SCORECARD-2026-07.md) | Pass/Fix/Defer scorecard for all widget types |
+| [BEST-IN-CLASS-FINISH-2026-07.md](BEST-IN-CLASS-FINISH-2026-07.md) | Nesting + write sandbox + template prove-out |
+| [WIDGET-LIBRARY-INVENTORY-2026-07.md](WIDGET-LIBRARY-INVENTORY-2026-07.md) | Full catalog coverage + flavor matrix |
+| [WIDGET-REDESIGN-2026-07.md](WIDGET-REDESIGN-2026-07.md) | Full-library visual redesign sign-off |
+| [WIDGET-VISUAL-LANGUAGE-2026-07.md](WIDGET-VISUAL-LANGUAGE-2026-07.md) | Wall hierarchy + calm/alert chrome rules (v8) |
+| [TEMPLATE-INVENTORY-2026-07.md](TEMPLATE-INVENTORY-2026-07.md) | Pre–v7.2 template baseline inventory |
+| [TEMPLATE-AUDIT-2026-07-v7.2.md](TEMPLATE-AUDIT-2026-07-v7.2.md) | Retired v7.2 template audit (historical) |
+| [TEMPLATE-AUDIT-2026-07-v8.md](TEMPLATE-AUDIT-2026-07-v8.md) | v8 curated catalog QA + screenshot index |
+| [TEMPLATE-AUDIT-2026-07-v9.md](TEMPLATE-AUDIT-2026-07-v9.md) | v9 nesting prove-out (Operator Floor / Line Andon) |
+| [PLANT-EXPLORER-REDESIGN-2026-07.md](PLANT-EXPLORER-REDESIGN-2026-07.md) | Plant Explorer breadcrumb/drill-grid reimage + shared primitive refresh |
 
 ## How to use
 

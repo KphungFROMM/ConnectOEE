@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="Operator Floor">
+  <rect width="640" height="360" fill="#F4F5F7"/>
+  <rect x="16" y="16" width="608" height="28" rx="6" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="28" y="24" width="120" height="12" rx="3" fill="#CFE0FB"/>
+  <rect x="480" y="24" width="60" height="12" rx="3" fill="#E3E5E8"/>
+  <rect x="552" y="24" width="56" height="12" rx="3" fill="#D1FAE5"/>
+  <rect x="16" y="56" width="250" height="160" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <circle cx="141" cy="126" r="52" fill="none" stroke="#2E9E5B" stroke-width="10"/>
+  <text x="141" y="134" text-anchor="middle" font-family="Segoe UI,Arial" font-size="22" font-weight="700" fill="#1F2329">87%</text>
+  <rect x="278" y="56" width="160" height="160" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <circle cx="358" cy="120" r="28" fill="#2E9E5B"/>
+  <rect x="318" y="168" width="80" height="12" rx="3" fill="#E3E5E8"/>
+  <rect x="450" y="56" width="174" height="160" rx="10" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="470" y="90" width="134" height="14" rx="3" fill="#CFE0FB"/>
+  <rect x="470" y="120" width="134" height="28" rx="6" fill="#E8F0FE"/>
+  <rect x="470" y="164" width="90" height="12" rx="3" fill="#E3E5E8"/>
+  <rect x="16" y="228" width="300" height="48" rx="8" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="328" y="228" width="296" height="48" rx="8" fill="#FFFFFF" stroke="#E3E5E8"/>
+  <rect x="16" y="288" width="608" height="56" rx="10" fill="#FFFFFF" stroke="#2563EB" stroke-width="2"/>
+  <rect x="36" y="308" width="100" height="16" rx="4" fill="#E8F0FE"/>
+  <rect x="152" y="308" width="100" height="16" rx="4" fill="#E8F0FE"/>
+  <rect x="268" y="308" width="100" height="16" rx="4" fill="#E8F0FE"/>
+</svg>

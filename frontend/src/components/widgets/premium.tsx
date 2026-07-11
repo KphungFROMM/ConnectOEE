@@ -2,17 +2,16 @@ import { Badge, Card, Group, Progress, ScrollArea, Stack, Text } from '@mantine/
 import { LineChart } from '@mantine/charts'
 import { IconClock, IconTool } from '@tabler/icons-react'
 import { useMemo } from 'react'
-import { lightTheme, statusColors } from '../../theme/tokens'
+import { statusColors } from '../../theme/tokens'
 import { getHierarchyTree, type PlantNode } from '../../lib/hierarchy'
 import { getDowntime, getCurrentShift, type DowntimeEvent } from '../../lib/metrics'
 import { HeatmapGrid, type HeatmapCell } from './charts/HeatmapGrid'
 import { LeaderboardBars } from './charts/LeaderboardBars'
-import { OeeGaugeVisual } from './charts/OeeGaugeVisual'
+import { OeeGaugeVisual, gaugeColorForField, gaugeLabelForField } from './charts/OeeGaugeVisual'
 import { FactorGaugeVisual } from './charts/FactorGaugeVisual'
 import { WaterfallChart } from './charts/WaterfallChart'
 import {
   WidgetFrame,
-  factorColor,
   fmtNumber,
   oeeBadgeMantineColor,
   oeeColor,
@@ -21,20 +20,24 @@ import {
   formatDurationSeconds,
   isDurationMinutesField,
   resolveFrameVariant,
+  kpiAccentColor,
+  resolveKpiColorMode,
+  wallContentLabel,
 } from './common'
 import type { WidgetProps } from './common'
 import { AndonStackVisual } from './design/AndonStackVisual'
+import { resolveStatusStyle } from './design/statusStyle'
 import { ChartShell, SummaryChip } from './design/ChartShell'
 import { chartSeries } from './design/widgetTheme'
-import { KpiValue } from './design/KpiValue'
+import { PresentationKpi, resolveKpiPresentation } from './design/PresentationKpi'
 import { PlantKpiStrip } from './design/PlantKpiStrip'
 import { atRiskLines, flatLines, mergeLineRanking } from './plantLineRanking'
 import { aggregateSnapshots } from './resolveBindingScope'
-import { resolveScopedSnapshot, resolveScopedField } from './resolveScopedSnapshot'
+import { resolveScopedSnapshot, resolveScopedField, resolveWidgetField } from './resolveScopedSnapshot'
 import { useHistorianTrend, trendField } from './useHistorianWidget'
 import { usePolling } from './usePolling'
 import { hasMetricHelp } from '../../lib/help'
-import { oeeFactorColors } from '../../theme/tokens'
+import { getFactorColors } from '../../theme/factorColorsRuntime'
 const EVENT_CATEGORY_COLORS: Record<string, string> = {
   Breakdown: 'red',
   SetupAndAdjustment: 'orange',
@@ -114,11 +117,11 @@ function resolvePlantField(
 export function PlantSummaryHeroWidget({ widget, ctx }: WidgetProps) {
   const { data: tree } = usePlantLines(ctx.plantId)
   const lines = flatLines(tree, ctx.plantId)
-  const live = aggregateSnapshots(ctx.lineSnapshots)
+  const live = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const treeAgg = treePlantAgg(lines)
   const hasLive = ctx.lineSnapshots.length > 0
   const aggFromTree = treeAgg ? { ...treeAgg, teepPct: live.teepPct } : live
-  const agg = hasLive
+  const plantAgg = hasLive
     ? {
         oeePct: live.oeePct,
         availabilityPct: live.availabilityPct,
@@ -130,12 +133,34 @@ export function PlantSummaryHeroWidget({ widget, ctx }: WidgetProps) {
       }
     : aggFromTree
 
+  // Most-specific scope first: machine → line → plant
+  const machineSnap = ctx.machineId ? ctx.snapshot : undefined
+  const lineSnap = !machineSnap && ctx.lineId ? resolveScopedSnapshot(ctx, { ...widget.binding, source: 'line' }) : undefined
+  const scoped = machineSnap ?? lineSnap
+  const agg = scoped
+    ? {
+        oeePct: scoped.oeePct ?? 0,
+        availabilityPct: scoped.availabilityPct ?? 0,
+        performancePct: scoped.performancePct ?? 0,
+        qualityPct: scoped.qualityPct ?? 0,
+        goodCount: scoped.goodCount ?? 0,
+        rejectCount: scoped.rejectCount ?? 0,
+        teepPct: scoped.teepPct ?? 0,
+      }
+    : plantAgg
+
+  const defaultTitle = ctx.machineId ? 'Machine KPIs' : ctx.lineId ? 'Line KPIs' : ctx.plantId ? 'Plant KPIs' : 'KPIs'
+  const noData = scoped
+    ? !scoped
+    : lines.length === 0 && ctx.lineSnapshots.length === 0
+
   return (
     <WidgetFrame
-      title={widget.title ?? 'Plant KPIs'}
+      title={widget.title ?? defaultTitle}
       variant={resolveFrameVariant(widget, ctx)}
       tone="info"
-      noData={lines.length === 0 && ctx.lineSnapshots.length === 0}
+      noData={noData}
+      stale={!ctx.hubConnected}
       density={ctx.density}
       wallBoard={ctx.wallBoard}
     >
@@ -210,26 +235,36 @@ export function WorstLinesWidget({ widget, ctx }: WidgetProps) {
 
 export function OeeHeroWidget({ widget, ctx }: WidgetProps) {
   const snap = resolveScopedSnapshot(ctx, widget.binding)
+  const field = resolveWidgetField(widget, ctx) ?? widget.binding.field ?? 'oeePct'
   const variant = resolveFrameVariant(widget, ctx)
   const isKiosk = variant === 'kiosk' || ctx.density === 'kiosk'
+  // Admin kiosk preview and floor kiosk share the same hero KPI chrome (big ring, no A/P/Q chips).
+  const wallStyle = ctx.wallBoard === true || isKiosk
   const ringSize = isKiosk
-    ? Math.min(Math.round(widget.h * (ctx.wallBoard ? 52 : 44)), ctx.wallBoard ? 280 : 220)
+    ? Math.min(Math.round(widget.h * (wallStyle ? 52 : 44)), wallStyle ? 280 : 220)
     : variant === 'compact'
       ? 120
       : widget.h >= 5
         ? 190
         : 160
+  const label = gaugeLabelForField(field)
   return (
     <WidgetFrame
-      title={widget.title ?? 'OEE'}
+      title={widget.title ?? label}
       variant={variant}
       density={ctx.density}
       wallBoard={ctx.wallBoard}
       tone="info"
       noData={!snap}
-      accentColor={snap && !ctx.wallBoard ? oeeColor() : undefined}
+      accentColor={snap && !wallStyle ? gaugeColorForField(field) : undefined}
     >
-      <OeeGaugeVisual snapshot={snap} size={ringSize} wallBoard={ctx.wallBoard} showBreakdown={variant !== 'compact' && !ctx.wallBoard} />
+      <OeeGaugeVisual
+        snapshot={snap}
+        field={field}
+        size={ringSize}
+        wallBoard={wallStyle}
+        showBreakdown={variant !== 'compact' && !wallStyle}
+      />
     </WidgetFrame>
   )
 }
@@ -254,7 +289,7 @@ export function KpiStatCardWidget({ widget, ctx }: WidgetProps) {
   const source = widget.binding.source
   const { data: tree } = usePlantLines(ctx.plantId)
   const lines = flatLines(tree, ctx.plantId)
-  const plantAgg = aggregateSnapshots(ctx.lineSnapshots)
+  const plantAgg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const { data: trend } = useHistorianTrend(ctx, 'Hour', false, 30_000, source === 'plant' ? 'plant' : undefined)
   const plantFieldValue =
     source === 'plant' ? resolvePlantField(field, plantAgg, lines, ctx.lineSnapshots.length > 0) : null
@@ -268,61 +303,77 @@ export function KpiStatCardWidget({ widget, ctx }: WidgetProps) {
       : resolveScopedField(ctx, widget.binding, field) ?? resolveField(ctx.snapshot, field)
   const isNum = typeof raw === 'number'
   const kind = widget.options.kind ?? (field.includes('Pct') ? 'percent' : 'number')
+  const decimals = kind === 'percent' ? 1 : 0
+  const presentation = resolveKpiPresentation(widget.options.presentation)
   const spark = useMemo(
     () => (trend?.points ?? []).slice(-8).map((p, i) => ({ label: `${i}`, v: trendField(p, field) })),
     [trend, field],
   )
   const prev = spark.length >= 2 ? spark[spark.length - 2].v : null
   const delta = isNum && prev != null ? (raw as number) - prev : null
-  const display = raw == null ? '—' : isNum ? `${fmtNumber(raw as number, kind === 'percent' ? 1 : 0)}${kind === 'percent' ? '%' : ''}` : String(raw)
+  const display =
+    raw == null
+      ? '—'
+      : isNum
+        ? `${fmtNumber(raw as number, decimals)}${kind === 'percent' ? '%' : ''}`
+        : String(raw)
   const hasPlantData =
     source === 'plant' &&
     (lines.length > 0 || ctx.lineSnapshots.length > 0 || (trend?.points?.length ?? 0) > 0)
 
   const tone = widget.options.tone
-  const isWallCount =
-    kind === 'number' && (ctx.wallBoard || (ctx.density === 'kiosk' && (tone === 'good' || tone === 'bad')))
   const frameTone = tone === 'good' ? 'good' : tone === 'bad' ? 'bad' : kind === 'percent' ? 'info' : 'neutral'
-  const factorKey = field.includes('Pct') ? field : null
-  const identityColor = factorKey && isNum ? factorColor(factorKey) : undefined
+  const snap = resolveScopedSnapshot(ctx, widget.binding) ?? ctx.snapshot
+  const accent = kpiAccentColor({
+    field,
+    value: isNum ? (raw as number) : null,
+    mode: resolveKpiColorMode(widget.options.colorMode),
+    connectionState: snap?.connectionState,
+    targetOeePct: snap?.targetOeePct,
+  })
   const valueColor =
     tone === 'good'
       ? 'var(--mantine-color-teal-6)'
       : tone === 'bad'
         ? 'var(--mantine-color-red-6)'
-        : identityColor
+        : accent
 
   const helpId = field && hasMetricHelp(field) ? field : undefined
+  const variant = resolveFrameVariant(widget, ctx)
+  const sparklineData =
+    presentation === 'spark' || presentation === 'ringSpark' || presentation === 'barSpark' || presentation === 'delta'
+      ? spark.length >= 2
+        ? spark
+        : undefined
+      : undefined
 
   return (
     <WidgetFrame
       title={widget.title}
       helpId={helpId}
-      variant={ctx.density === 'kiosk' ? 'kiosk' : 'default'}
+      variant={variant}
       density={ctx.density}
       wallBoard={ctx.wallBoard}
       tone={frameTone}
+      calmMuted={tone === 'good'}
       noData={source === 'plant' ? !hasPlantData && raw == null : raw == null}
-      accentColor={!ctx.wallBoard ? identityColor : undefined}
+      stale={!ctx.hubConnected}
+      accentColor={!ctx.wallBoard ? accent : undefined}
     >
-      <KpiValue
+      <PresentationKpi
+        presentation={presentation}
         value={display}
-        label={isWallCount ? (widget.title ?? undefined) : undefined}
-        helpId={helpId}
+        numericValue={isNum ? (raw as number) : undefined}
         unit={widget.options.unit}
-        delta={isWallCount ? null : delta}
+        label={wallContentLabel(widget, ctx)}
         color={valueColor}
-        sparklineData={!isWallCount && spark.length >= 2 ? spark : undefined}
-        sparklineColor={identityColor ?? lightTheme.primary}
         density={ctx.density}
-        wallBoard={ctx.wallBoard}
-        megaCount={isWallCount}
+        helpId={helpId}
+        max={kind === 'percent' ? 100 : Math.max(isNum ? (raw as number) : 100, 100)}
+        sparklineData={sparklineData}
+        decimals={decimals}
+        delta={delta}
       />
-      {!isWallCount && spark.length < 2 && isNum && kind === 'percent' ? (
-        <Text size="10px" c="dimmed" mt={4}>
-          History building…
-        </Text>
-      ) : null}
     </WidgetFrame>
   )
 }
@@ -331,24 +382,42 @@ export function AndonStackWidget({ widget, ctx }: WidgetProps) {
   const state = ctx.snapshot?.state
   const frameTone =
     state === 'Running' ? 'good' : state === 'Down' || state === 'Setup' ? 'bad' : state ? 'warn' : 'neutral'
+  const variant = resolveFrameVariant(widget, ctx)
+  const statusStyle = resolveStatusStyle(widget.options.statusStyle, 'tower')
+  const layout =
+    statusStyle === 'strip' ||
+    statusStyle === 'tower' ||
+    statusStyle === 'beacon' ||
+    statusStyle === 'pill' ||
+    statusStyle === 'minimal'
+      ? statusStyle
+      : 'tower'
   return (
     <WidgetFrame
       title={widget.title ?? 'Andon'}
-      variant="kiosk"
+      variant={variant}
       density={ctx.density ?? 'kiosk'}
       wallBoard={ctx.wallBoard}
       tone={frameTone}
+      calmMuted={state === 'Running'}
+      elevation="hero"
       noData={!ctx.snapshot}
     >
-      <AndonStackVisual state={state} density={ctx.density ?? 'kiosk'} />
+      <AndonStackVisual
+        state={state}
+        density={ctx.density ?? 'kiosk'}
+        caption={ctx.wallBoard || ctx.density === 'kiosk' ? widget.title : undefined}
+        layout={layout}
+      />
     </WidgetFrame>
   )
 }
 
 export function OeeWaterfallWidget({ widget, ctx }: WidgetProps) {
-  const isPlant = widget.binding.source === 'plant'
-  const s = isPlant ? null : ctx.snapshot
-  const agg = aggregateSnapshots(ctx.lineSnapshots)
+  const isPlant = widget.binding.source === 'plant' || (!ctx.machineId && !ctx.lineId && !!ctx.plantId)
+  const scoped = resolveScopedSnapshot(ctx, widget.binding)
+  const s = isPlant ? null : scoped
+  const agg = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const mode = (widget.options.mode as 'percent' | 'minutes' | undefined) ?? 'percent'
 
   const apq = isPlant
@@ -378,6 +447,7 @@ export function OeeWaterfallWidget({ widget, ctx }: WidgetProps) {
       : null
 
   const hasData = isPlant ? ctx.lineSnapshots.length > 0 : !!s
+  const colors = getFactorColors()
 
   const steps =
     mode === 'minutes' && losses
@@ -386,19 +456,19 @@ export function OeeWaterfallWidget({ widget, ctx }: WidgetProps) {
           const oeeMin = (losses.oee / 100) * total
           return [
             { name: 'Start', value: total, fill: '#8A929E' },
-            { name: 'A', value: losses.a, fill: oeeFactorColors.availability.hex },
-            { name: 'P', value: losses.p, fill: oeeFactorColors.performance.hex },
-            { name: 'Q', value: losses.q, fill: oeeFactorColors.quality.hex },
-            { name: 'OEE', value: oeeMin, fill: oeeFactorColors.oee.hex },
+            { name: 'A', value: losses.a, fill: colors.availability.hex },
+            { name: 'P', value: losses.p, fill: colors.performance.hex },
+            { name: 'Q', value: losses.q, fill: colors.quality.hex },
+            { name: 'OEE', value: oeeMin, fill: colors.oee.hex },
           ]
         })()
       : apq
         ? [
             { name: 'Start', value: 100, fill: '#8A929E' },
-            { name: 'A', value: 100 - apq.a, fill: oeeFactorColors.availability.hex },
-            { name: 'P', value: Math.max(0, apq.a - apq.p), fill: oeeFactorColors.performance.hex },
-            { name: 'Q', value: Math.max(0, apq.p - apq.q), fill: oeeFactorColors.quality.hex },
-            { name: 'OEE', value: apq.oee, fill: oeeFactorColors.oee.hex },
+            { name: 'A', value: 100 - apq.a, fill: colors.availability.hex },
+            { name: 'P', value: Math.max(0, apq.a - apq.p), fill: colors.performance.hex },
+            { name: 'Q', value: Math.max(0, apq.p - apq.q), fill: colors.quality.hex },
+            { name: 'OEE', value: apq.oee, fill: colors.oee.hex },
           ]
         : []
 
@@ -445,7 +515,7 @@ export function MultiTrendWidget({ widget, ctx }: WidgetProps) {
   const showTarget = widget.options.showTarget === true || widget.options.showTargetLine === true
   const singleSeries = field !== 'oeePct'
   const { data: trend } = useHistorianTrend(ctx, 'Hour', false, 30_000, source)
-  const live = aggregateSnapshots(ctx.lineSnapshots)
+  const live = aggregateSnapshots(ctx.lineSnapshots, ctx.lineTopologyByLineId)
   const chartData = useMemo(
     () =>
       (trend?.points ?? []).map((p) => {
@@ -578,7 +648,7 @@ export function EventFeedWidget({ widget, ctx }: WidgetProps) {
 }
 
 export function ShiftProgressBarWidget({ widget, ctx }: WidgetProps) {
-  const snap = ctx.snapshot
+  const snap = resolveScopedSnapshot(ctx, widget.binding) ?? ctx.snapshot
   const { data: shift } = usePolling(
     () => getCurrentShift(ctx.lineId, ctx.plantId),
     10000,

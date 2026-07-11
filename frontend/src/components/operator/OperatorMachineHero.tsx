@@ -117,6 +117,7 @@ export function OperatorMachineHero({ machine }: Props) {
       timeBalance={timeBalance}
       hideTeep
       footer={<OperatorRunStateStrip machine={machine} />}
+      connectionState={machine.connectionState}
     />
   )
 }

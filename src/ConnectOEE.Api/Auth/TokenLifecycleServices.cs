@@ -53,7 +53,7 @@ public sealed class KioskTokenService
 
         try
         {
-            var handler = new JwtSecurityTokenHandler();
+            var handler = new JwtSecurityTokenHandler { MapInboundClaims = false };
             var principal = handler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuer = true,
@@ -64,11 +64,16 @@ public sealed class KioskTokenService
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.SigningKey)),
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.FromSeconds(30),
+                NameClaimType = JwtRegisteredClaimNames.Sub,
             }, out _);
 
             if (principal.FindFirst("token_kind")?.Value != "kiosk") return false;
-            if (!Guid.TryParse(principal.FindFirstValue(JwtRegisteredClaimNames.Sub), out var dashId)) return false;
-            if (dashId != expectedDashboardId) return false;
+
+            // Prefer raw "sub"; fall back to NameIdentifier if a global claim map remapped it.
+            var sub =
+                principal.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(sub, out var dashId) || dashId != expectedDashboardId) return false;
             if (!Guid.TryParse(principal.FindFirstValue(ConnectClaimTypes.LineScope), out lineId)) return false;
             return lineId != Guid.Empty;
         }

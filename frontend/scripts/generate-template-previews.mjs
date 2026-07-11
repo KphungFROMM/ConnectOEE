@@ -1,3 +1,9 @@
+/**
+ * Fallback abstract SVG generator for template gallery thumbnails.
+ * Prefer real crops from `node scripts/capture-template-screenshots.mjs`
+ * promoted to `public/template-previews/{slug}.png` (v7.2+).
+ * This script only writes SVGs when a PNG is missing.
+ */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -37,8 +43,15 @@ const colors = ['#228be6', '#15aabf', '#40c057', '#fab005', '#fa5252', '#7950f2'
 
 fs.mkdirSync(outDir, { recursive: true })
 
+let wrote = 0
+let skipped = 0
 for (const [i, name] of names.entries()) {
   const s = slug(name)
+  const pngPath = path.join(outDir, `${s}.png`)
+  if (fs.existsSync(pngPath)) {
+    skipped++
+    continue
+  }
   const c = colors[i % colors.length]
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
@@ -56,9 +69,10 @@ for (const [i, name] of names.entries()) {
   <rect x="220" y="232" width="180" height="104" rx="8" fill="white" opacity="0.75"/>
   <rect x="416" y="232" width="200" height="104" rx="8" fill="white" opacity="0.75"/>
   <text x="40" y="60" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">${name}</text>
-  <text x="40" y="340" fill="#495057" font-family="Segoe UI, Arial, sans-serif" font-size="14">ConnectOEE v7 template preview</text>
+  <text x="40" y="340" fill="#495057" font-family="Segoe UI, Arial, sans-serif" font-size="14">ConnectOEE fallback preview</text>
 </svg>`
   fs.writeFileSync(path.join(outDir, `${s}.svg`), svg)
+  wrote++
 }
 
-console.log(`Wrote ${names.length} SVG previews to ${outDir}`)
+console.log(`Fallback SVGs: wrote ${wrote}, skipped ${skipped} (PNG present) → ${outDir}`)

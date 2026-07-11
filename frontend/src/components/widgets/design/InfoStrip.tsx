@@ -1,14 +1,37 @@
 import { Stack, Text } from '@mantine/core'
 import type { ReactNode } from 'react'
+import { statusColors } from '../../../theme/tokens'
 import type { WidgetDensity } from './widgetTheme'
 import { scaledSize } from './widgetTheme'
 
 export type InfoStripVariant = 'fault' | 'calm' | 'info'
 
-const stripStyles: Record<InfoStripVariant, { bg: string; fg: string }> = {
-  fault: { bg: 'var(--mantine-color-red-9)', fg: '#fff' },
-  calm: { bg: 'var(--mantine-color-teal-9)', fg: '#fff' },
-  info: { bg: 'var(--mantine-color-blue-9)', fg: '#fff' },
+/**
+ * Alert variants (fault/info) stay full-bleed for attention.
+ * Calm is a muted subordinate bar — never a solid teal-9 slab.
+ */
+function stripStyle(variant: InfoStripVariant, wallBoard?: boolean): {
+  bg: string
+  fg: string
+  border?: string
+  fullBleed: boolean
+} {
+  if (variant === 'fault') {
+    return { bg: 'var(--mantine-color-red-9)', fg: '#fff', fullBleed: true }
+  }
+  if (variant === 'info') {
+    return { bg: 'var(--mantine-color-blue-9)', fg: '#fff', fullBleed: true }
+  }
+  return {
+    bg: wallBoard
+      ? `color-mix(in srgb, ${statusColors.running} 10%, var(--coee-wall-surface, var(--mantine-color-body)))`
+      : `color-mix(in srgb, ${statusColors.running} 8%, var(--mantine-color-body))`,
+    fg: 'var(--mantine-color-text)',
+    border: wallBoard
+      ? `1px solid color-mix(in srgb, ${statusColors.running} 28%, var(--coee-wall-border, var(--mantine-color-default-border)))`
+      : `1px solid color-mix(in srgb, ${statusColors.running} 28%, var(--mantine-color-default-border))`,
+    fullBleed: false,
+  }
 }
 
 export function InfoStrip({
@@ -17,6 +40,7 @@ export function InfoStrip({
   subtitle,
   density,
   compact,
+  wallBoard,
   children,
 }: {
   variant: InfoStripVariant
@@ -24,35 +48,54 @@ export function InfoStrip({
   subtitle?: ReactNode
   density?: WidgetDensity
   compact?: boolean
+  wallBoard?: boolean
   children?: ReactNode
 }) {
   const isKiosk = density === 'kiosk'
-  const { bg, fg } = stripStyles[variant]
+  const { bg, fg, border, fullBleed } = stripStyle(variant, wallBoard)
+  const isCalm = variant === 'calm'
+  const titleSize = isCalm || compact
+    ? isKiosk
+      ? 18
+      : 14
+    : scaledSize(isKiosk ? 48 : 32, density)
 
   return (
     <Stack
       justify="center"
       align="center"
       h="100%"
-      gap={compact ? 2 : 4}
+      gap={compact || isCalm ? 2 : 4}
       style={{
-        borderRadius: compact ? 8 : 10,
+        borderRadius: compact || isCalm ? 8 : 10,
         background: bg,
         color: fg,
-        padding: compact ? 8 : scaledSize(10, density),
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
+        border,
+        padding: compact || isCalm ? 8 : scaledSize(10, density),
+        boxShadow: fullBleed ? 'inset 0 1px 0 rgba(255,255,255,0.12)' : undefined,
       }}
     >
       <Text
-        fw={900}
+        fw={isCalm ? 700 : 900}
         lh={1}
         ta="center"
-        style={{ fontSize: compact ? 18 : scaledSize(isKiosk ? 48 : 32, density) }}
+        tt={isCalm ? 'uppercase' : undefined}
+        c={isCalm ? 'dimmed' : undefined}
+        style={{
+          fontSize: titleSize,
+          letterSpacing: isCalm ? 0.6 : undefined,
+        }}
       >
         {title}
       </Text>
       {subtitle ? (
-        <Text size={compact ? 'xs' : isKiosk ? 'lg' : 'sm'} opacity={0.9} ta="center" lineClamp={1}>
+        <Text
+          size={compact || isCalm ? 'xs' : isKiosk ? 'lg' : 'sm'}
+          opacity={isCalm ? 0.85 : 0.9}
+          ta="center"
+          lineClamp={1}
+          c={isCalm ? 'dimmed' : undefined}
+        >
           {subtitle}
         </Text>
       ) : null}

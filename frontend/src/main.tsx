@@ -7,6 +7,7 @@ import '@mantine/core/styles.css'
 import '@mantine/dates/styles.css'
 import '@mantine/notifications/styles.css'
 import '@mantine/charts/styles.css'
+import './components/widgets/design/premiumMotion.css'
 import { theme } from './theme/theme'
 import App from './App.tsx'
 
