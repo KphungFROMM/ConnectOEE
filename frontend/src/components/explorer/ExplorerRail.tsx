@@ -4,6 +4,7 @@ import { useMediaQuery } from '@mantine/hooks'
 import { IconClock, IconSearch } from '@tabler/icons-react'
 import type { useExplorerNav } from '../../lib/useExplorerNav'
 import { explorerRunStateColor, oeeExplorerBadgeColor } from '../widgets/common'
+import { WidgetSurface } from '../widgets/design/WidgetSurface'
 import type { ExplorerNode } from './explorerTypes'
 
 type Nav = ReturnType<typeof useExplorerNav>
@@ -184,15 +185,10 @@ export function ExplorerRail({ nav }: { nav: Nav }) {
   if (!railOpen) return null
 
   return (
-    <div
-      style={{
-        width: 260,
-        flexShrink: 0,
-        borderRight: '1px solid var(--mantine-color-default-border)',
-        paddingRight: 12,
-      }}
-    >
-      <RailContent nav={nav} />
+    <div style={{ width: 280, flexShrink: 0 }}>
+      <WidgetSurface tone="neutral" padding="sm" radius="md" style={{ height: '100%', position: 'sticky', top: 0 }}>
+        <RailContent nav={nav} />
+      </WidgetSurface>
     </div>
   )
 }

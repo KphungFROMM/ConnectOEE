@@ -1,8 +1,7 @@
 import { Group, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core'
 import { IconFilterOff } from '@tabler/icons-react'
 import type { MachineSnapshot } from '../../lib/liveHub'
-import { MachineGridCard } from '../widgets/MachineGridCard'
-import { HierarchyNodeCard } from './HierarchyNodeCard'
+import { ExplorerChildTile } from './ExplorerChildTile'
 import type { ExplorerChildSummary } from './explorerTree'
 import type { ExplorerNode } from './explorerTypes'
 
@@ -22,20 +21,15 @@ function titleForChildren(children: ExplorerChildSummary[]): string {
   }
 }
 
-/**
- * Responsive grid of drill-down cards for the current node's children — `HierarchyNodeCard`
- * for Plant/Department/Line, `MachineGridCard` (live-snapshot aware) for Machine leaves.
- */
-export function ExplorerDrillGrid({
+/** Primary drill canvas — explorer-native tiles only (no MachineGridCard). */
+export function ExplorerChildCanvas({
   children,
   allChildren,
   snapshots,
   onSelect,
   onClearFilter,
 }: {
-  /** Status-filtered children to render. */
   children: ExplorerChildSummary[]
-  /** Unfiltered children — used to tell "no children" apart from "filter hid everything". */
   allChildren: ExplorerChildSummary[]
   snapshots: MachineSnapshot[]
   onSelect: (node: ExplorerNode) => void
@@ -46,7 +40,7 @@ export function ExplorerDrillGrid({
   const isMachineLevel = allChildren[0]?.level === 'Machine'
 
   return (
-    <Stack gap="sm">
+    <Stack gap="sm" className="explorerDrillTransition">
       <Group justify="space-between">
         <Text fw={700} size="sm" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.03em' }}>
           {titleForChildren(allChildren)} ({children.length}/{allChildren.length})
@@ -68,25 +62,10 @@ export function ExplorerDrillGrid({
           </UnstyledButton>
         </Stack>
       ) : (
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: isMachineLevel ? 3 : 3, xl: isMachineLevel ? 4 : 4 }} spacing="md">
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: isMachineLevel ? 4 : 3 }} spacing="md">
           {children.map((child) => {
-            if (child.level === 'Machine') {
-              const snap = snapshots.find((s) => s.machineId === child.id)
-              if (snap) {
-                return (
-                  <UnstyledButton
-                    key={child.id}
-                    onClick={() => onSelect(child)}
-                    style={{ display: 'block', height: '100%' }}
-                    aria-label={`Open ${child.name}`}
-                    className="explorerFadeIn"
-                  >
-                    <MachineGridCard snapshot={snap} />
-                  </UnstyledButton>
-                )
-              }
-            }
-            return <HierarchyNodeCard key={child.id} node={child} onSelect={onSelect} />
+            const snap = child.level === 'Machine' ? snapshots.find((s) => s.machineId === child.id) : undefined
+            return <ExplorerChildTile key={child.id} node={child} snapshot={snap} onSelect={onSelect} />
           })}
         </SimpleGrid>
       )}

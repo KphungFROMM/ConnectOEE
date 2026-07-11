@@ -1,19 +1,20 @@
-import { Alert, Group, SimpleGrid, Skeleton, Stack, Text, Title } from '@mantine/core'
+import { Alert, Group, SimpleGrid, Skeleton, Stack, Text } from '@mantine/core'
 import { IconAlertTriangle, IconBuildingFactory2 } from '@tabler/icons-react'
 import { useExplorerNav } from '../lib/useExplorerNav'
-import { ExplorerDetailPanel } from '../components/explorer/ExplorerDetailPanel'
-import { ExplorerDrillGrid } from '../components/explorer/ExplorerDrillGrid'
-import { ExplorerNavigator } from '../components/explorer/ExplorerNavigator'
-import { ExplorerNodeHero } from '../components/explorer/ExplorerNodeHero'
+import { ExplorerChildCanvas } from '../components/explorer/ExplorerChildCanvas'
+import { ExplorerCommandBar } from '../components/explorer/ExplorerCommandBar'
+import { ExplorerHealthStrip } from '../components/explorer/ExplorerHealthStrip'
+import { ExplorerInsights } from '../components/explorer/ExplorerInsights'
 import { ExplorerRail } from '../components/explorer/ExplorerRail'
 
 function ExplorerLoadingSkeleton() {
   return (
     <Stack gap="md">
-      <Skeleton height={96} radius="md" />
+      <Skeleton height={160} radius="md" />
+      <Skeleton height={88} radius="md" />
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} height={140} radius="md" />
+          <Skeleton key={i} height={148} radius="md" />
         ))}
       </SimpleGrid>
     </Stack>
@@ -25,13 +26,7 @@ function ExplorerErrorState({ error, onRetry }: { error: string; onRetry: () => 
     <Alert color="red" variant="light" title="Couldn't load the plant hierarchy" icon={<IconAlertTriangle size={18} />}>
       <Stack gap="xs">
         <Text size="sm">{error}</Text>
-        <Text
-          size="sm"
-          fw={600}
-          c="blue"
-          style={{ cursor: 'pointer', width: 'fit-content' }}
-          onClick={onRetry}
-        >
+        <Text size="sm" fw={600} c="blue" style={{ cursor: 'pointer', width: 'fit-content' }} onClick={onRetry}>
           Retry
         </Text>
       </Stack>
@@ -52,6 +47,10 @@ function ExplorerEmptyState() {
   )
 }
 
+/**
+ * Ground-up Plant Explorer cockpit:
+ * CommandBar → HealthStrip → ChildCanvas → Insights
+ */
 export function PlantExplorerPage() {
   const nav = useExplorerNav()
   const { tree, loading, error, reload, selected, children, filteredChildren, setStatusFilter, select, snapshots } = nav
@@ -60,14 +59,7 @@ export function PlantExplorerPage() {
 
   return (
     <Stack gap="md">
-      <div>
-        <Title order={2}>Plant Explorer</Title>
-        <Text size="sm" c="dimmed">
-          Drill from plant to machine with live connection status, run state, and OEE% visible at every step.
-        </Text>
-      </div>
-
-      <ExplorerNavigator nav={nav} />
+      <ExplorerCommandBar nav={nav} />
 
       <Group align="flex-start" gap="md" wrap="nowrap">
         <ExplorerRail nav={nav} />
@@ -81,15 +73,19 @@ export function PlantExplorerPage() {
 
           {!error && !loading && tree.length > 0 ? (
             <>
-              {selected && hasChildren ? (
-                <div key={`hero-${selected.level}-${selected.id}`} className="explorerDrillTransition">
-                  <ExplorerNodeHero node={selected} />
-                </div>
-              ) : null}
+              <div key={`health-${selected?.level ?? 'root'}-${selected?.id ?? 'root'}`} className="explorerDrillTransition">
+                <ExplorerHealthStrip
+                  selected={selected}
+                  drillChildren={children}
+                  tree={tree}
+                  snapshots={snapshots}
+                  onSelectWorst={select}
+                />
+              </div>
 
               {hasChildren ? (
-                <div key={`grid-${selected?.level ?? 'root'}-${selected?.id ?? 'root'}`} className="explorerDrillTransition">
-                  <ExplorerDrillGrid
+                <div key={`canvas-${selected?.level ?? 'root'}-${selected?.id ?? 'root'}`} className="explorerDrillTransition">
+                  <ExplorerChildCanvas
                     children={filteredChildren}
                     allChildren={children}
                     snapshots={snapshots}
@@ -100,7 +96,9 @@ export function PlantExplorerPage() {
               ) : null}
 
               {selected ? (
-                <ExplorerDetailPanel node={selected} tree={tree} snapshots={snapshots} onSelectNode={select} />
+                <div key={`insights-${selected.level}-${selected.id}`} className="explorerDrillTransition">
+                  <ExplorerInsights node={selected} tree={tree} snapshots={snapshots} onSelectNode={select} />
+                </div>
               ) : null}
             </>
           ) : null}

@@ -67,13 +67,28 @@ export function useExplorerNav() {
   const tree = useMemo(() => applySnapshotsToTree(rawTree, snapshots), [rawTree, snapshots])
 
   // Apply ?scope= once the tree is available; afterwards navigation is driven by `select()`.
+  // Single-plant sites auto-enter that plant when no scope is in the URL.
   useEffect(() => {
     if (appliedInitialScope.current || tree.length === 0) return
     appliedInitialScope.current = true
     const scopeParam = searchParams.get('scope')
-    if (!scopeParam) return
-    const node = findNodeFromScope(tree, scopeParam)
-    if (node) setSelectedScope({ level: node.level, id: node.id })
+    if (scopeParam) {
+      const node = findNodeFromScope(tree, scopeParam)
+      if (node) setSelectedScope({ level: node.level, id: node.id })
+      return
+    }
+    if (tree.length === 1) {
+      const plant = tree[0]
+      setSelectedScope({ level: 'Plant', id: plant.id })
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev)
+          p.set('scope', scopeToParam('Plant', plant.id))
+          return p
+        },
+        { replace: true },
+      )
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tree])
 

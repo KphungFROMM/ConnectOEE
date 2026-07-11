@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Alert, Anchor, Badge, Group, Paper, Select, Stack, Text } from '@mantine/core'
+import { Alert, Anchor, Badge, Group, Select, Stack, Text } from '@mantine/core'
 import { Link } from 'react-router-dom'
 import { notifications } from '@mantine/notifications'
 import { getLineProductionContext, type NodeKpi } from '../../lib/hierarchy'
 import { listRecipes, selectLineRecipe, type RecipeDto } from '../../lib/admin'
 import { changeoverModeHint } from '../../lib/productChange'
+import { WidgetSurface } from '../widgets/design/WidgetSurface'
 
 interface Props {
   lineId: string
@@ -48,8 +49,9 @@ export function LineProductStrip({ lineId, kpi, canSelect }: Props) {
   const mode = ctx?.changeoverMode ?? 'SetupTracked'
 
   return (
-    <Paper withBorder p="md" radius="md" id="line-product-strip">
-      <Stack gap="sm">
+    <div id="line-product-strip">
+      <WidgetSurface tone="neutral" padding="md" radius="md">
+        <Stack gap="sm">
         <Group justify="space-between" align="flex-start" wrap="wrap">
           <div>
             <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
@@ -116,6 +118,7 @@ export function LineProductStrip({ lineId, kpi, canSelect }: Props) {
           </Stack>
         ) : null}
       </Stack>
-    </Paper>
+      </WidgetSurface>
+    </div>
   )
 }

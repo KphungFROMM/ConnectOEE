@@ -1,23 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Alert, Anchor, Badge, Card, Group, Progress, SimpleGrid, Stack, Table, Text } from '@mantine/core'
+import { useEffect, useState } from 'react'
+import { Alert, Anchor, Badge, Card, Group, SimpleGrid, Stack, Table, Text } from '@mantine/core'
 import { Link } from 'react-router-dom'
 import type { ReasonBucket } from '../../lib/historian'
 import type { MachineSnapshot } from '../../lib/liveHub'
-import { getCurrentShift, getDowntime, type DowntimeEvent, type ShiftInstance } from '../../lib/metrics'
+import { getDowntime, type DowntimeEvent, type ShiftInstance } from '../../lib/metrics'
 import { formatDurationMinutes, formatDurationSeconds } from '../../lib/formatDuration'
 import { scopeToParam } from '../../lib/scopeFromUrl'
 import { PresentationKpi } from '../widgets/design/PresentationKpi'
 import { WidgetFrame } from '../widgets/common'
-import { WidgetSurface } from '../widgets/design/WidgetSurface'
 import { DowntimeByMachineChart } from './DowntimeByMachineChart'
+import { ExplorerShiftPanel } from './ExplorerShiftPanel'
 import { liveMetricsFromSnapshot, type ExplorerLiveMetrics } from './explorerKpi'
 import type { DrillNode } from '../../lib/historian'
-
-const FALLBACK_SHIFT = 'all day'
-
-function isFallbackShift(name: string) {
-  return name.trim().toLowerCase() === FALLBACK_SHIFT
-}
 
 export function OfflineHint({ connectionState }: { connectionState: string }) {
   if (connectionState === 'Connected') return null
@@ -34,78 +28,13 @@ export function ShiftContextBar({
   lineId,
   plantId,
   snapshot,
-  shiftFromApi,
 }: {
   lineId?: string
   plantId?: string
   snapshot?: MachineSnapshot
   shiftFromApi?: ShiftInstance | null
 }) {
-  const [shift, setShift] = useState<ShiftInstance | null>(shiftFromApi ?? null)
-
-  useEffect(() => {
-    if (!lineId && !plantId) return
-    const load = () =>
-      void getCurrentShift(lineId ?? null, plantId ?? null)
-        .then(setShift)
-        .catch(() => undefined)
-    load()
-    const t = setInterval(load, 30_000)
-    return () => clearInterval(t)
-  }, [lineId, plantId])
-
-  const name = shift?.shiftName ?? snapshot?.shiftName ?? '—'
-  const startUtc = shift?.startUtc ?? snapshot?.shiftStartUtc
-  const endUtc = shift?.endUtc ?? snapshot?.shiftEndUtc
-  const fallback = isFallbackShift(name)
-
-  const progress = useMemo(() => {
-    if (!startUtc || !endUtc) return null
-    const start = new Date(startUtc).getTime()
-    const end = new Date(endUtc).getTime()
-    const now = Date.now()
-    const total = Math.max(1, end - start)
-    const elapsed = Math.max(0, Math.min(total, now - start))
-    const remaining = Math.max(0, end - now)
-    return {
-      pct: (elapsed / total) * 100,
-      elapsedSec: elapsed / 1000,
-      remainingSec: remaining / 1000,
-    }
-  }, [startUtc, endUtc])
-
-  return (
-    <WidgetSurface tone="info" padding="md" radius="md">
-      <Group justify="space-between" mb="xs" wrap="wrap">
-        <div>
-          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-            Current shift
-          </Text>
-          <Text fw={700}>{fallback ? 'No shift assigned' : name}</Text>
-        </div>
-        {!fallback && startUtc && endUtc ? (
-          <Text size="sm" c="dimmed">
-            {new Date(startUtc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            {' – '}
-            {new Date(endUtc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        ) : null}
-      </Group>
-      {progress && !fallback ? (
-        <Stack gap={6}>
-          <Progress value={progress.pct} size="md" radius="xl" color="blue" />
-          <Group justify="space-between">
-            <Text size="xs" c="dimmed">
-              {formatDurationSeconds(progress.elapsedSec)} elapsed
-            </Text>
-            <Text size="xs" c="dimmed">
-              {formatDurationSeconds(progress.remainingSec)} remaining
-            </Text>
-          </Group>
-        </Stack>
-      ) : null}
-    </WidgetSurface>
-  )
+  return <ExplorerShiftPanel lineId={lineId} plantId={plantId} snapshot={snapshot} variant="full" />
 }
 
 export function ReliabilityStrip({ live }: { live: ExplorerLiveMetrics | null }) {

@@ -120,6 +120,55 @@ Post-launch feedback on the OEE hero pair (OEE ring/A-P-Q/loss-bar card + Produc
 - `npm run build` — production build succeeds.
 - Manual browser QA across breakpoints/themes/hierarchy levels (table above).
 
+## Ground-up cockpit rebuild (2026-07)
+
+Incremental band reshuffles were replaced by a **full Explorer UI rewrite**. Data hooks (`useExplorerNav`, `explorerTree`, `explorerKpi`, `useExplorerHistorian`) stayed; shells and tiles did not.
+
+### Page architecture
+
+```mermaid
+flowchart TB
+  subgraph command [Single sticky command plane]
+    Bar[ExplorerCommandBar]
+  end
+  subgraph primary [Above the fold]
+    Health[ExplorerHealthStrip]
+    Canvas[ExplorerChildCanvas]
+  end
+  subgraph secondary [Below fold]
+    Hero[ExplorerKpiHero]
+    Tabs[Overview Downtime Reliability]
+  end
+  Bar --> Health --> Canvas --> Hero --> Tabs
+```
+
+| Band | Component | Role |
+|------|-----------|------|
+| **Command plane** | `ExplorerCommandBar` | Sticky `WidgetSurface`: rail/home, breadcrumb, search, status filters, hub live, scope identity (no OEE ring), Analytics link, full `ExplorerShiftPanel` |
+| **Health** | `ExplorerHealthStrip` | Fleet health + lowest-OEE plants at root; APQ + child run counts when scoped |
+| **Children** | `ExplorerChildCanvas` + `ExplorerChildTile` | One tile language Plant→Machine (no `MachineGridCard` / `HierarchyNodeCard`) |
+| **Insights** | `ExplorerInsights` | One `ModernKpiHero`; URL-synced `?tab=`; Overview compact compare |
+| **Shift atom** | `ExplorerShiftPanel` | `full` in command bar, `compact` on plant tiles; gate `(lineId \|\| plantId)` only |
+
+**Deleted:** `ExplorerNavigator`, `ExplorerScopeChrome`, `ExplorerNodeHero`, `ExplorerDrillGrid`, `HierarchyNodeCard`, `PlantShiftChip`, `ExplorerDetailPanel`, `ExplorerEnterpriseStrip`.
+
+### Shift QA matrix
+
+| Level | Shift source | In command plane? | Notes |
+|-------|--------------|-------------------|--------|
+| All plants | Compact chip on plant tiles + fleet strip | N/A (pick a plant) | Single-plant auto-select |
+| Plant | `plantId` full panel | Yes | Not gated on live |
+| Department | Parent `plantId` | Yes | Plant calendar |
+| Line | `lineId` | Yes | Line calendar |
+| Machine | Parent `lineId` | Yes | Same line shift |
+
+### Explicit non-goals (unchanged)
+
+- No backend/API changes
+- No return to always-expanded tree
+- No global header shift
+- No full Analytics clone inside Explorer
+
 ## Out of scope
 
 - Backend/API changes.

@@ -1,44 +1,44 @@
-import { Badge, Card, Group, Stack, Text, UnstyledButton } from '@mantine/core'
+import { Badge, Group, Stack, Text, UnstyledButton } from '@mantine/core'
 import { IconChevronRight } from '@tabler/icons-react'
+import type { MachineSnapshot } from '../../lib/liveHub'
 import { explorerRunStateColor, oeeExplorerHexColor, statusSurfaceTone } from '../widgets/common'
 import { GaugeRing } from '../widgets/design/GaugeRing'
-import { toneSurfaceStyle } from '../widgets/design/widgetTheme'
+import { WidgetSurface } from '../widgets/design/WidgetSurface'
 import { ConnectionPill } from './explorerStatus'
+import { ExplorerShiftPanel } from './ExplorerShiftPanel'
 import type { ExplorerChildSummary } from './explorerTree'
 import type { ExplorerNode } from './explorerTypes'
 
 /**
- * Primary navigation unit for Plant/Department/Line drill-down — a status- and
- * OEE-aware card that doubles as a glanceable health tile.
+ * Unified drill tile for Plant → Machine — one visual language across the hierarchy.
  */
-export function HierarchyNodeCard({
+export function ExplorerChildTile({
   node,
+  snapshot,
   onSelect,
 }: {
   node: ExplorerChildSummary
+  snapshot?: MachineSnapshot
   onSelect: (node: ExplorerNode) => void
 }) {
-  const tone = statusSurfaceTone(node.kpi.status, node.kpi.connectionState)
-  const runColor = explorerRunStateColor(node.kpi.status, node.kpi.connectionState)
-  const oeeHex = oeeExplorerHexColor(node.kpi.oeePct, node.kpi.connectionState)
+  const status = snapshot?.state ?? node.kpi.status
+  const connectionState = snapshot?.connectionState ?? node.kpi.connectionState
+  const oeePct = snapshot?.oeePct ?? node.kpi.oeePct
+  const tone = statusSurfaceTone(status, connectionState)
+  const runColor = explorerRunStateColor(status, connectionState)
+  const oeeHex = oeeExplorerHexColor(oeePct, connectionState)
+  const product =
+    snapshot?.activeRecipeCode ?? snapshot?.activeRecipeName ?? node.activeProductCode ?? node.kpi.activeRecipeCode
+  const plantIdForShift = node.level === 'Plant' ? node.id : undefined
 
   return (
     <UnstyledButton
       onClick={() => onSelect(node)}
       style={{ display: 'block', width: '100%', height: '100%', textAlign: 'left' }}
       aria-label={`Open ${node.name}`}
+      className="hoverLift explorerFadeIn"
     >
-      <Card
-        withBorder
-        radius="md"
-        padding="md"
-        h="100%"
-        className="hoverLift explorerFadeIn"
-        style={{
-          ...toneSurfaceStyle(tone),
-          boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)',
-        }}
-      >
+      <WidgetSurface tone={tone} padding="md" radius="md" elevation="default" style={{ height: '100%' }}>
         <Stack gap={10} h="100%" justify="space-between">
           <Group justify="space-between" wrap="nowrap" align="flex-start">
             <Group gap={8} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
@@ -66,9 +66,10 @@ export function HierarchyNodeCard({
           </Group>
 
           <Group justify="space-between" align="center" wrap="nowrap">
-            <GaugeRing value={node.kpi.oeePct} size={64} thickness={8} ringColor={oeeHex} valueOutside />
+            <GaugeRing value={oeePct} size={68} thickness={8} ringColor={oeeHex} valueOutside />
             <Stack gap={6} align="flex-end">
-              <ConnectionPill connectionState={node.kpi.connectionState} />
+              <ConnectionPill connectionState={connectionState} />
+              {plantIdForShift ? <ExplorerShiftPanel plantId={plantIdForShift} variant="compact" /> : null}
               {node.level === 'Line' && node.topology === 'Continuous' ? (
                 <Badge variant="light" color="violet" size="sm" maw={140} style={{ overflow: 'hidden' }}>
                   <Text size="xs" truncate>
@@ -81,17 +82,22 @@ export function HierarchyNodeCard({
                   {node.childCount} {node.childLabel}
                 </Badge>
               ) : null}
-              {node.activeProductCode ? (
+              {product ? (
                 <Badge variant="outline" color="blue" size="sm" maw={130} style={{ overflow: 'hidden' }}>
                   <Text size="xs" truncate>
-                    {node.activeProductCode}
+                    {product}
                   </Text>
+                </Badge>
+              ) : null}
+              {node.level === 'Machine' && snapshot?.state ? (
+                <Badge variant="light" color="gray" size="sm">
+                  {snapshot.state}
                 </Badge>
               ) : null}
             </Stack>
           </Group>
         </Stack>
-      </Card>
+      </WidgetSurface>
     </UnstyledButton>
   )
 }
