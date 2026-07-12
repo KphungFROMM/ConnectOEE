@@ -1,4 +1,5 @@
-import { Badge, Button, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core'
+import { Badge, Button, Group, Progress, SimpleGrid, Stack, Text, Anchor } from '@mantine/core'
+import { Link } from 'react-router-dom'
 import { BarChart, DonutChart, LineChart } from '@mantine/charts'
 import { notifications } from '@mantine/notifications'
 import { useEffect, useMemo, useState } from 'react'
@@ -26,6 +27,8 @@ export function FieldTileWidget(props: WidgetProps) {
 }
 
 export function CurrentJobBannerWidget({ widget, ctx }: WidgetProps) {
+  const { hasPermission } = useAuth()
+  const canManageProducts = hasPermission(Permissions.ManageProducts)
   const snap = resolveScopedSnapshot(ctx, widget.binding) ?? ctx.snapshot
   const code = snap?.activeRecipeCode
   const name = snap?.activeRecipeName
@@ -35,9 +38,17 @@ export function CurrentJobBannerWidget({ widget, ctx }: WidgetProps) {
     <WidgetFrame title={widget.title ?? 'Current Job'} noData={!ctx.snapshot} stale={!ctx.hubConnected}>
       <Stack justify="center" h="100%" gap={4}>
         {autoCreated ? (
-          <Badge color="orange" variant="light" size="sm">
-            Auto-created — review ideal cycle
-          </Badge>
+          canManageProducts ? (
+            <Anchor component={Link} to="/admin?tab=recipes&recipesTab=review" size="sm">
+              <Badge color="orange" variant="light" size="sm" style={{ cursor: 'pointer' }}>
+                Auto-created — review ideal cycle
+              </Badge>
+            </Anchor>
+          ) : (
+            <Badge color="orange" variant="light" size="sm">
+              Auto-created — review ideal cycle
+            </Badge>
+          )
         ) : null}
         <Text fw={800} size="xl" lh={1}>
           {name ?? code ?? 'No active recipe'}

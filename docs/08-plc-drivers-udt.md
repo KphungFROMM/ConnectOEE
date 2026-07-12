@@ -65,6 +65,8 @@ Each machine exposes logical **signal roles** mapped to PLC tags (or mock values
 | `DowntimeReason` | **Optional** — numeric PLC stop reason; auto-cataloged when unknown |
 | `PartId` / `ProductCode` | Current product/run context |
 
+`PartId` is normally a Logix **STRING** (or integer code). The Rockwell driver decodes CIP STRING via libplctag (`GetString`) into `SignalReading.TextValue` so Tag Mapping preview and auto-recipe resolution see values like `FRM-A12` — not float noise from the STRING buffer.
+
 `ReworkCount` is optional — when unmapped, rework defaults to zero and FPY equals yield.
 
 **Live throughput (pph)** is not a mapped PLC signal. ConnectOEE computes `actualRatePph` from shift good+reject counts and run time (see 06).

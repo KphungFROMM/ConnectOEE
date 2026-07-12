@@ -36,6 +36,7 @@ public class RecipeResolverService
     private List<LineProductRate> _lineRates = new();
     private Dictionary<Guid, double> _lineDefaults = new();
     private Dictionary<Guid, LineProductionMode> _lineModes = new();
+    private Dictionary<Guid, LineTopology> _lineTopologies = new();
     private DateTimeOffset _catalogLoaded = DateTimeOffset.MinValue;
 
     public RecipeResolverService(IServiceScopeFactory scopeFactory) => _scopeFactory = scopeFactory;
@@ -48,6 +49,7 @@ public class RecipeResolverService
         var configs = await db.OeeConfigs.AsNoTracking().ToListAsync(ct);
         _lineDefaults = configs.ToDictionary(o => o.LineId, o => o.IdealCycleTimeSec <= 0 ? 2.0 : o.IdealCycleTimeSec);
         _lineModes = configs.ToDictionary(o => o.LineId, o => o.ProductionMode);
+        _lineTopologies = configs.ToDictionary(o => o.LineId, o => o.Topology);
         _catalogLoaded = DateTimeOffset.UtcNow;
     }
 
@@ -110,11 +112,16 @@ public class RecipeResolverService
         {
             previousCode = state?.ActiveRecipeCode;
             recipeChanged = !string.IsNullOrWhiteSpace(code);
-            if (state?.ActiveProductionRunId is Guid runId)
-            {
-                toClose = await db.ProductionRuns.FirstOrDefaultAsync(r => r.Id == runId, ct);
-                if (toClose is not null) toClose.EndUtc = ts;
-            }
+
+            // Close every open run on the line — Independent presses can leave orphans when
+            // each machine opens a run for a different PartId in the same poll batch.
+            var openRuns = await db.ProductionRuns
+                .Where(r => r.LineId == lineId && r.EndUtc == null)
+                .OrderByDescending(r => r.StartUtc)
+                .ToListAsync(ct);
+            foreach (var open in openRuns)
+                open.EndUtc = ts;
+            toClose = openRuns.FirstOrDefault();
 
             if (recipe is not null || !string.IsNullOrWhiteSpace(code))
             {
@@ -149,17 +156,23 @@ public class RecipeResolverService
             state.ActiveProductionRunId = toAdd?.Id;
             state.UpdatedUtc = ts;
 
-            // Line-level product: keep sibling machines in sync for explorer/UI roll-up.
-            var siblings = await db.MachineProductionStates
-                .Where(s => s.LineId == lineId && s.MachineId != machineId)
-                .ToListAsync(ct);
-            foreach (var sib in siblings)
+            // Continuous lines share one product — mirror to siblings. Independent presses
+            // may run different SKUs; syncing them fights every poll and duplicates runs.
+            var isContinuous = _lineTopologies.TryGetValue(lineId, out var topo)
+                && topo == LineTopology.Continuous;
+            if (isContinuous)
             {
-                sib.ActiveRecipeId = recipe?.Id;
-                sib.ActiveRecipeCode = code;
-                sib.ActiveProductionRunId = toAdd?.Id;
-                sib.UpdatedUtc = ts;
-                _cache[sib.MachineId] = ctx;
+                var siblings = await db.MachineProductionStates
+                    .Where(s => s.LineId == lineId && s.MachineId != machineId)
+                    .ToListAsync(ct);
+                foreach (var sib in siblings)
+                {
+                    sib.ActiveRecipeId = recipe?.Id;
+                    sib.ActiveRecipeCode = code;
+                    sib.ActiveProductionRunId = toAdd?.Id;
+                    sib.UpdatedUtc = ts;
+                    _cache[sib.MachineId] = ctx;
+                }
             }
         }
 

@@ -11,7 +11,7 @@ Beyond core A/P/Q/OEE, the engine computes a full reliability and loss-analysis 
 - Good / Reject / **Rework** / Total counts, **Scrap %**, **Yield %**, **FPY** (first-pass yield: good / (good + reject + rework); good count should be first-pass only).
 - Ideal vs actual cycle time, actual rate vs ideal rate.
 - **Actual rate (pph)** is computed live as `(good + reject) / run time` for the shift — not read from a PLC Speed tag.
-- **Ideal cycle resolution (live)**: `LineProductRate` for (line, product) → `ProductRecipe` default → line `OeeConfig` fallback. Performance % = `(idealCycle × totalCount) / runTime`. Live snapshots expose `idealCycleSource` (`line-rate`, `product-default`, `line-default`) so Explorer/Operator can show which tier is active.
+- **Ideal cycle resolution (live)**: `LineProductRate` for (line, product) → `ProductRecipe` default → line `OeeConfig` fallback. Performance % = `(idealCycle × totalCount) / runTime`. Live snapshots expose `idealCycleSource` (`line-rate`, `product-default`, `line-default`) so Explorer/Operator can show which tier is active. Unknown PLC PartIds auto-create catalog stubs (`IsAutoCreated`); admins review them under **Admin → Recipes → Auto-created review** (badge count on Recipes). Set catalog default + **per-line** speeds there — Independent peer machines share the line+SKU rate (there is no per-machine product-rate table); Continuous lines use the same line rate with pacing/output topology rules.
 - **Three-tier model (do not confuse layers)**:
   1. **Line speeds** (`LineProductRate`) — per-line capability for an active SKU (e.g. PKG-STD at 1.66 s on Line 1).
   2. **Product catalog** (`ProductRecipe.IdealCycleTimeSec`) — plant-wide engineering default (e.g. PKG-STD at 1.8 s).

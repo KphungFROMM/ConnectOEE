@@ -11,7 +11,7 @@ A modern, intuitive, browser-based OEE Accelerator platform providing:
 - Multi-line, multi-department, multi-plant support.
 - Role-based access for admins, supervisors, operators, managers.
 - PLC connectivity (initial: Rockwell EtherNet/IP) with optional write-back (start permissive, reset, acknowledge).
-- Smart fault code detection and mapping.
+- Smart fault code detection and mapping; Operator Station quick reasons are managed under **Admin → Reason catalog** (add/remove descriptions; optional PLC code).
 - Guided startup wizard for new installations.
 - Kiosk dashboards requiring no login.
 - WYSIWYG drag-and-drop dashboard builder.

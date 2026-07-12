@@ -24,6 +24,12 @@ Start with the root [AGENTS.md](../AGENTS.md) for the high-level summary and loc
 | [13-startup-wizard.md](13-startup-wizard.md) | Guided startup wizard |
 | [14-roadmap-phases.md](14-roadmap-phases.md) | Phased build roadmap (sequencing source of truth) |
 | [15-commissioning-qa.md](15-commissioning-qa.md) | Greenfield commissioning matrix and verification gate |
+| [COMMISSION-REPORT-2026-07-11-live-plc.md](COMMISSION-REPORT-2026-07-11-live-plc.md) | Live PLC greenfield commission @ 192.168.1.21 (Jul 2026) |
+| [SNAPSHOT-KIT-2026-07.md](SNAPSHOT-KIT-2026-07.md) | Exhaustive UI snapshot kit (auth→admin + galleries) for Help/brochure/QA |
+| [snapshot-kit-2026-07/README.md](snapshot-kit-2026-07/README.md) | Snapshot pack folder index + re-run instructions |
+| [help-center/OUTLINE-2026-07.md](help-center/OUTLINE-2026-07.md) | Help Center article outline wired to commission screenshots |
+| [brochure/ConnectOEE-brochure.html](brochure/ConnectOEE-brochure.html) | Product brochure (print → PDF) — features, drivers, WYSIWYG builder |
+| [brochure/ConnectOEE-brochure-draft.md](brochure/ConnectOEE-brochure-draft.md) | Brochure copy outline + figure map (light UI screenshots throughout) |
 | [16-factory-deployment-security.md](16-factory-deployment-security.md) | Factory floor TLS, network, secrets, security commissioning |
 | [17-licensing.md](17-licensing.md) | Offline license keys, trial limits, activation |
 | [MOVING-TO-ANOTHER-PC.md](MOVING-TO-ANOTHER-PC.md) | How to continue the project on a different computer |

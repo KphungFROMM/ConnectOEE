@@ -170,13 +170,13 @@ Signed-in operators, supervisors, managers, and admins use a dedicated **multi-s
   - Sticky **scope bar** with back link, breadcrumbs, shift progress, and **machine segmented tabs** (state-colored dots) on multi-machine lines.
   - **URL ↔ filter sync** — drilling into a machine sets the scope Machine filter and scopes the reason queue to that station.
   - **Downtime action banner** — when Down with an unassigned stop, large touch-friendly reason pad (sticky above hero).
-  - **Product strip** — active SKU, ideal, changeover mode hint, change product (inline select on desktop, modal on touch). Primary path for deliberate SKU changes.
+  - **Product strip** — active SKU, ideal, changeover mode hint, change product (inline select on desktop, modal on touch). Primary path for deliberate SKU changes. When the active SKU was auto-created from an unknown PLC PartId, an orange badge links managers to **Admin → Recipes → Auto-created review** (`/admin?tab=recipes&recipesTab=review`) to set catalog + line speeds.
   - **Changeover reason vs product** — assigning Changeover in the reason queue labels the stop only; optional product picker appears for live/recent stops (Skip or Apply). Backfilled historical reasons do not change active product.
   - **Operator machine hero** — shared `ModernKpiHero` layout: OEE ring, A/P/Q factor gauges, production mix, time balance, status beacon.
   - **Shift target strip** — count-to-go, target pace, actual vs ideal rate (uses `actualRatePph`, not raw PLC speed).
   - **Reason queue (machine mode)** — compact table (max 8 rows + expand), hides Machine column, relative timestamps on mobile.
 - **Reason queue (line mode)** — on grid view / All stations: full paginated plant/line backlog.
-- **Catalog-driven reasons** — downtime reason catalog per line; PLC codes flagged **needs review** when auto-stubbed.
+- **Catalog-driven reasons** — Operator Station quick-reason buttons come from **Admin → Reason catalog** (`/admin?tab=faults`). Admins add/edit/delete descriptions (grouped by loss category); leave PLC code blank for operator-only buttons (auto synthetic codes ≥ 9000). Real PLC stop codes can be mapped the same way; unknown codes are auto-stubbed for **needs review**.
 - Scope filters: plant / line / machine; URL `?machine={id}` for bookmarking a station.
 
 ### Live snapshot bindable fields (`SNAPSHOT_FIELDS`)

@@ -1,0 +1,16 @@
+{
+  "plantId": "c7edd815-f2c2-4b39-97f5-065ed73787dc",
+  "deptId": "dad6d33a-b7c4-4ed3-8cee-8d5c490d4a22",
+  "bevLineId": "82c97496-05f2-4421-a890-93d903600622",
+  "moldLineId": "12dbea6a-37f1-4b36-8703-fbf1beb65e6e",
+  "fillerMachineId": "9e2ac1ff-005f-4df6-a715-4050708bba2f",
+  "dashPlantOverview": "219ca121-943a-45a4-bd3d-5f47a6ead65a",
+  "dashAnalyticsStarter": "fe0c813f-eeea-40ff-b820-0290ad4cc2a0",
+  "dashBevAndon": "8efd1055-a1b4-4708-85e0-7ee87c2cefb5",
+  "dashBevOperator": "b94c41ac-2010-4be7-9700-bdcfbe8b8023",
+  "dashBevProduction": "eb04468b-09ed-4b80-82d6-fdce75b56daf",
+  "dashBevQuality": "c0d73460-e2b8-4273-8c06-1baed710bc96",
+  "dashBevSupervisor": "b4efcec4-2e69-4981-95db-cf9e8a0838ad",
+  "dashMoldMaintenance": "ab3ca758-3e93-4b1e-9604-4723e4f06676",
+  "dashAny": "fe0c813f-eeea-40ff-b820-0290ad4cc2a0"
+}

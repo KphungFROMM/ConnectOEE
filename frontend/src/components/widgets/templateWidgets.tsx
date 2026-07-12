@@ -13,6 +13,8 @@ import { GaugeRing } from './design/GaugeRing'
 import { TrafficBandBadge } from './design/StatusVisual'
 import { resolveStatusStyle } from './design/statusStyle'
 import { flatLines } from './plantLineRanking'
+import { useAuth } from '../../lib/auth'
+import { Permissions } from '../../lib/permissions'
 import { resolveScopedSnapshot } from './resolveScopedSnapshot'
 import { usePolling } from './usePolling'
 import { factorColor } from './common'
@@ -357,6 +359,8 @@ export function PaceGaugeWidget({ widget, ctx }: WidgetProps) {
 }
 
 export function RecipeProductStripWidget({ widget, ctx }: WidgetProps) {
+  const { hasPermission } = useAuth()
+  const canManageProducts = hasPermission(Permissions.ManageProducts)
   const snap = resolveScopedSnapshot(ctx, widget.binding)
   const code = snap?.activeRecipeCode
   const name = snap?.activeRecipeName
@@ -371,9 +375,17 @@ export function RecipeProductStripWidget({ widget, ctx }: WidgetProps) {
             {code ?? '—'}
           </Text>
           {auto ? (
-            <Badge size="sm" color="orange" variant="light">
-              Auto SKU
-            </Badge>
+            canManageProducts ? (
+              <Anchor component={Link} to="/admin?tab=recipes&recipesTab=review" size="sm">
+                <Badge size="sm" color="orange" variant="light" style={{ cursor: 'pointer' }}>
+                  Auto SKU
+                </Badge>
+              </Anchor>
+            ) : (
+              <Badge size="sm" color="orange" variant="light">
+                Auto SKU
+              </Badge>
+            )
           ) : null}
         </Group>
         <Text size="sm" c="dimmed" truncate>

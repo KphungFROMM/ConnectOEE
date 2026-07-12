@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Badge, Button, Group, Paper, Select, Stack, Text } from '@mantine/core'
+import { Alert, Anchor, Badge, Button, Group, Paper, Select, Stack, Text } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
+import { Link } from 'react-router-dom'
 import { notifications } from '@mantine/notifications'
 import { getLineProductionContext } from '../../lib/hierarchy'
 import { listRecipes, selectMachineRecipe, type RecipeDto } from '../../lib/admin'
 import { idealCycleSourceLabel } from '../../lib/idealRate'
 import { changeoverModeHint } from '../../lib/productChange'
 import type { MachineSnapshot } from '../../lib/liveHub'
+import { useAuth } from '../../lib/auth'
+import { Permissions } from '../../lib/permissions'
 import { ProductSelectModal } from './ProductSelectModal'
 
 interface Props {
@@ -17,6 +20,8 @@ interface Props {
 }
 
 export function OperatorProductStrip({ lineId, machineId, machine, canSelect }: Props) {
+  const { hasPermission } = useAuth()
+  const canManageProducts = hasPermission(Permissions.ManageProducts)
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const [ctx, setCtx] = useState<Awaited<ReturnType<typeof getLineProductionContext>> | null>(null)
   const [recipes, setRecipes] = useState<RecipeDto[]>([])
@@ -98,9 +103,17 @@ export function OperatorProductStrip({ lineId, machineId, machine, canSelect }: 
         </Stack>
 
         {machine.recipeIsAutoCreated ? (
-          <Badge color="orange" variant="light">
-            Auto-created — set ideal cycle
-          </Badge>
+          canManageProducts ? (
+            <Anchor component={Link} to="/admin?tab=recipes&recipesTab=review" size="sm">
+              <Badge color="orange" variant="light" style={{ cursor: 'pointer' }}>
+                Auto-created — set ideal cycle
+              </Badge>
+            </Anchor>
+          ) : (
+            <Badge color="orange" variant="light">
+              Auto-created — set ideal cycle
+            </Badge>
+          )
         ) : null}
 
         {canSelect && !plcLocked ? (

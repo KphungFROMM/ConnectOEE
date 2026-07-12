@@ -28,9 +28,14 @@ public sealed class LineAttainmentLoader
         var map = new Dictionary<Guid, LineAttainmentData>();
         if (lineIds.Count == 0) return map;
 
-        var openRuns = await _db.ProductionRuns.AsNoTracking()
+        // Independent lines can briefly have more than one open run (e.g. sibling presses
+        // with different PartIds). Never ToDictionary by LineId — take the latest per line.
+        var openRunRows = await _db.ProductionRuns.AsNoTracking()
             .Where(r => lineIds.Contains(r.LineId) && r.EndUtc == null)
-            .ToDictionaryAsync(r => r.LineId, ct);
+            .ToListAsync(ct);
+        var openRuns = openRunRows
+            .GroupBy(r => r.LineId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.StartUtc).First());
 
         var schedules = await _db.ProductionSchedules.AsNoTracking()
             .Where(s => lineIds.Contains(s.LineId)

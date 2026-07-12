@@ -17,7 +17,7 @@
 - Supervisors can delete only dashboards they created.
 - The **Plant Explorer** (full plant/department/line/machine hierarchy navigation - see 10) is available to **Admin, Manager, and Supervisor** (Supervisors scoped to their `UserPlantScope`). **Operators are excluded** and remain limited to their assigned line view.
 - **Appearance (KPI identity, status/Andon colors, header branding)**: `users.manage` — Admin → Appearance can edit OEE/A/P/Q identity hex colors, running/warning/fault/idle status colors, and header title/logo (`GET` any authenticated user; `PUT`/`POST …/reset`/`POST …/logo` require `users.manage`).
-- **Product catalog & selection**: `products.manage` (Admin, Manager, Supervisor) for catalog + per-line ideal cycle rates; `products.select` (Admin, Manager, Supervisor, Operator) to assign running product when PLC PartId is not mapped. Unknown PLC PartIds auto-create catalog stubs.
+- **Product catalog & selection**: `products.manage` (Admin, Manager, Supervisor) for catalog + per-line ideal cycle rates and the **Auto-created review** queue (`/admin?tab=recipes&recipesTab=review`); `products.select` (Admin, Manager, Supervisor, Operator) to assign running product when PLC PartId is not mapped. Unknown PLC PartIds auto-create catalog stubs — orange badges on Admin Recipes and live Operator/Explorer strips point managers at review.
 
 ## Authentication
 
@@ -45,7 +45,7 @@
 ## Downtime reason permissions
 
 - `downtime.enter` — operator one-tap reason entry (`POST /api/shifts/downtime-reason`) and supervisor correction (`PATCH /api/events/downtime/{id}/reason`).
-- `GET /api/downtime-reasons/operator-catalog` and `operator-pending` — read-only catalog for operators (scoped by line); does **not** require `tags.map`.
-- Full downtime reason CRUD (`/api/downtime-reasons`) requires `tags.map`; Admin **Downtime Reasons** tab is gated on that permission.
+- `GET /api/downtime-reasons/operator-catalog` and `operator-pending` — read-only catalog for operators (scoped by line); does **not** require `tags.map`. Returns **one entry per catalog row** (quick buttons are not collapsed by PLC code).
+- Full downtime reason CRUD (`/api/downtime-reasons`) requires `tags.map`; Admin **Reason catalog** tab is gated on that permission. Admins manage Operator Station quick reasons here (optional PLC code; blank → synthetic code ≥ 9000).
 
 Audit records are append-only (PostgreSQL trigger prevents UPDATE/DELETE). Admin UI exports CSV.

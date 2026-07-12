@@ -42,8 +42,48 @@ public static class DbSeeder
         await SeedDashboardTemplatesAsync(db, logger);
         await SeedReportTemplatesAsync(db, logger);
         await ProductCatalogSeeder.SeedAsync(db, logger);
+        await SeedDefaultOperatorReasonsAsync(db, logger);
 
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Seeds the six default Operator Station quick reasons (synthetic codes ≥ 9000) when none exist yet.
+    /// Idempotent: skipped once any synthetic-band reason is present so admin deletes stay deleted.
+    /// </summary>
+    private static async Task SeedDefaultOperatorReasonsAsync(ConnectOeeDbContext db, ILogger logger)
+    {
+        const int syntheticMin = 9000;
+        if (await db.FaultCodeMaps.AnyAsync(f => f.Code >= syntheticMin))
+            return;
+
+        var defaults = new (string Reason, LossCategory Category, DowntimeKind Kind)[]
+        {
+            ("Changeover", LossCategory.SetupAndAdjustment, DowntimeKind.Planned),
+            ("Planned break", LossCategory.SetupAndAdjustment, DowntimeKind.Planned),
+            ("Material shortage", LossCategory.SmallStop, DowntimeKind.Unplanned),
+            ("Quality check", LossCategory.SmallStop, DowntimeKind.Unplanned),
+            ("Mechanical jam", LossCategory.Breakdown, DowntimeKind.Unplanned),
+            ("Maintenance", LossCategory.Breakdown, DowntimeKind.Unplanned),
+        };
+
+        var code = syntheticMin;
+        foreach (var d in defaults)
+        {
+            db.FaultCodeMaps.Add(new FaultCodeMap
+            {
+                Code = code++,
+                Reason = d.Reason,
+                Category = d.Category,
+                Kind = d.Kind,
+                LineId = null,
+                MachineId = null,
+                IsAutoCreated = false,
+                NeedsReview = false,
+            });
+        }
+
+        logger.LogInformation("Seeded {Count} default Operator Station quick reasons (codes {Min}+).", defaults.Length, syntheticMin);
     }
 
     /// <summary>Seeds the built-in report templates (one per prebuilt ReportType, see docs/12).</summary>

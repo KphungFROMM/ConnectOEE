@@ -5,6 +5,8 @@ import { notifications } from '@mantine/notifications'
 import { getLineProductionContext, type NodeKpi } from '../../lib/hierarchy'
 import { listRecipes, selectLineRecipe, type RecipeDto } from '../../lib/admin'
 import { changeoverModeHint } from '../../lib/productChange'
+import { useAuth } from '../../lib/auth'
+import { Permissions } from '../../lib/permissions'
 import { WidgetSurface } from '../widgets/design/WidgetSurface'
 
 interface Props {
@@ -14,6 +16,8 @@ interface Props {
 }
 
 export function LineProductStrip({ lineId, kpi, canSelect }: Props) {
+  const { hasPermission } = useAuth()
+  const canManageProducts = hasPermission(Permissions.ManageProducts)
   const [ctx, setCtx] = useState<Awaited<ReturnType<typeof getLineProductionContext>> | null>(null)
   const [recipes, setRecipes] = useState<RecipeDto[]>([])
 
@@ -66,9 +70,17 @@ export function LineProductStrip({ lineId, kpi, canSelect }: Props) {
             </Text>
           </div>
           {ctx?.recipeIsAutoCreated ? (
-            <Badge color="orange" variant="light">
-              Auto-created — set ideal cycle
-            </Badge>
+            canManageProducts ? (
+              <Anchor component={Link} to="/admin?tab=recipes&recipesTab=review" size="sm">
+                <Badge color="orange" variant="light" style={{ cursor: 'pointer' }}>
+                  Auto-created — set ideal cycle
+                </Badge>
+              </Anchor>
+            ) : (
+              <Badge color="orange" variant="light">
+                Auto-created — set ideal cycle
+              </Badge>
+            )
           ) : null}
         </Group>
 

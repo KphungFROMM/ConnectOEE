@@ -15,6 +15,9 @@ namespace ConnectOEE.Api.Controllers;
 [Authorize]
 public class DowntimeReasonsController : ControllerBase
 {
+    /// <summary>Reserved PLC-code band for operator-only quick reasons (no real PLC mapping).</summary>
+    public const int OperatorSyntheticCodeMin = 9000;
+
     private readonly ConnectOeeDbContext _db;
     private readonly IAuditService _audit;
     private readonly Live.DowntimeReasonResolverService _reasons;
@@ -43,7 +46,8 @@ public class DowntimeReasonsController : ControllerBase
     public record OperatorCatalogEntryDto(int Code, string Reason, string Category, string Kind, bool NeedsReview);
 
     public record SaveDowntimeReasonRequest(
-        int Code,
+        /// <summary>PLC stop code. Null/omitted → auto-assign unique synthetic code (≥ 9000) for Operator quick buttons.</summary>
+        int? Code,
         string Reason,
         string Category,
         string Kind,
@@ -84,15 +88,13 @@ public class DowntimeReasonsController : ControllerBase
             .Where(f => f.LineId == lineId || f.LineId == null);
         if (machineId is { } mid)
             q = q.Where(f => f.MachineId == mid || f.MachineId == null);
+        // One button per catalog row — do not collapse by PLC Code (operator-only reasons share the synthetic band).
         var items = await q
             .Where(f => !f.NeedsReview || !Live.DowntimeReasonResolverService.IsPlaceholderReason(f.Reason, f.Code))
-            .OrderBy(f => f.Code)
+            .OrderBy(f => f.Category)
+            .ThenBy(f => f.Reason)
             .ToListAsync();
-        // Prefer machine-specific over line-specific over global for duplicate codes.
-        var byCode = new Dictionary<int, FaultCodeMap>();
-        foreach (var f in items.OrderBy(f => f.MachineId.HasValue ? 0 : f.LineId.HasValue ? 1 : 2))
-            byCode[f.Code] = f;
-        return Ok(byCode.Values.Select(f => new OperatorCatalogEntryDto(
+        return Ok(items.Select(f => new OperatorCatalogEntryDto(
             f.Code, f.Reason, f.Category.ToString(), f.Kind.ToString(), f.NeedsReview)));
     }
 
@@ -114,9 +116,10 @@ public class DowntimeReasonsController : ControllerBase
     public async Task<ActionResult<DowntimeReasonDto>> Create([FromBody] SaveDowntimeReasonRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Reason)) return BadRequest(new { message = "Reason is required" });
+        var code = req.Code ?? await NextSyntheticCodeAsync();
         var map = new FaultCodeMap
         {
-            Code = req.Code,
+            Code = code,
             Reason = req.Reason.Trim(),
             Category = Enum.TryParse<LossCategory>(req.Category, true, out var c) ? c : LossCategory.Breakdown,
             Kind = Enum.TryParse<DowntimeKind>(req.Kind, true, out var k) ? k : DowntimeKind.Unplanned,
@@ -139,7 +142,7 @@ public class DowntimeReasonsController : ControllerBase
     {
         var map = await _db.FaultCodeMaps.FirstOrDefaultAsync(f => f.Id == id);
         if (map is null) return NotFound();
-        map.Code = req.Code;
+        map.Code = req.Code ?? map.Code;
         map.Reason = req.Reason.Trim();
         if (Enum.TryParse<LossCategory>(req.Category, true, out var c)) map.Category = c;
         if (Enum.TryParse<DowntimeKind>(req.Kind, true, out var k)) map.Kind = k;
@@ -166,6 +169,15 @@ public class DowntimeReasonsController : ControllerBase
         await _db.SaveChangesAsync();
         _reasons.InvalidateCatalog();
         return NoContent();
+    }
+
+    private async Task<int> NextSyntheticCodeAsync()
+    {
+        var max = await _db.FaultCodeMaps.AsNoTracking()
+            .Where(f => f.Code >= OperatorSyntheticCodeMin)
+            .Select(f => (int?)f.Code)
+            .MaxAsync();
+        return (max ?? OperatorSyntheticCodeMin - 1) + 1;
     }
 
     private static DowntimeReasonDto ToDto(FaultCodeMap f) =>

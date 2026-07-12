@@ -40,18 +40,19 @@ export function useDowntimeReasonCatalog(lineId?: string | null, machineId?: str
       .catch(() => {
         setCatalog([])
         setCatalogError(true)
-        setCatalogLoaded(false)
+        setCatalogLoaded(true)
       })
     void listOperatorPendingReasons(lineId)
       .then((rows) => setPendingCodes(new Set(rows.map((r) => r.code))))
       .catch(() => setPendingCodes(new Set()))
   }, [lineId, machineId])
 
+  // Prefer API catalog. Empty catalog = no buttons (manage in Admin). Fallback defaults only when the API fails.
   const options: ReasonOption[] = useMemo(() => {
     if (catalog.length > 0) return catalog
-    if (catalogError || !lineId) return DEFAULT_DOWNTIME_REASONS
+    if (catalogError) return DEFAULT_DOWNTIME_REASONS
     return []
-  }, [catalog, catalogError, lineId])
+  }, [catalog, catalogError])
 
   const byCategory = useMemo(() => {
     const map = new Map<string, ReasonOption[]>()
@@ -63,5 +64,13 @@ export function useDowntimeReasonCatalog(lineId?: string | null, machineId?: str
     return map
   }, [options])
 
-  return { options, byCategory, pendingCodes, catalogLoaded, catalogError, usingFallback: catalog.length === 0 && catalogError }
+  return {
+    options,
+    byCategory,
+    pendingCodes,
+    catalogLoaded,
+    catalogError,
+    usingFallback: catalogError && catalog.length === 0,
+    catalogEmpty: catalogLoaded && !catalogError && catalog.length === 0,
+  }
 }

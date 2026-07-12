@@ -42,6 +42,7 @@ public class RecipesController : ControllerBase
 
     public record RecipeDto(Guid Id, Guid? LineId, string Code, string Name, string? PlcAlias, double IdealCycleTimeSec, double? TargetQuantity, bool IsActive, bool IsAutoCreated);
     public record LineRateDto(Guid ProductRecipeId, string Code, string Name, double DefaultCycleSec, double EffectiveCycleSec, double? TargetQuantity, bool HasLineOverride, bool IsAutoCreated);
+    public record RecipeLineRateRowDto(Guid LineId, string LineName, string PlantName, string? Topology, double? IdealCycleTimeSec, bool HasOverride);
     public record SaveRecipeRequest(Guid? LineId, string Code, string Name, string? PlcAlias, double IdealCycleTimeSec, double? TargetQuantity, bool? IsActive);
     public record SaveLineRateRequest(double IdealCycleTimeSec, double? TargetQuantity);
     public record SelectRecipeRequest(Guid? RecipeId);
@@ -77,6 +78,36 @@ public class RecipesController : ControllerBase
             return new LineRateDto(
                 r.Id, r.Code, r.Name, r.IdealCycleTimeSec, effective,
                 rate?.TargetQuantity ?? r.TargetQuantity, rate is not null, r.IsAutoCreated);
+        }));
+    }
+
+    /// <summary>All plant lines with optional existing LineProductRate for one catalog product (Auto-created review).</summary>
+    [HttpGet("{id:guid}/line-rates")]
+    [HasPermission(PermissionKeys.ManageProducts)]
+    public async Task<ActionResult<IEnumerable<RecipeLineRateRowDto>>> RecipeLineRates(Guid id)
+    {
+        if (!await _db.ProductRecipes.AnyAsync(r => r.Id == id)) return NotFound();
+
+        var lines = await _db.Lines.AsNoTracking()
+            .Include(l => l.Department)!.ThenInclude(d => d!.Plant)
+            .Include(l => l.OeeConfig)
+            .OrderBy(l => l.Department!.Plant!.Name)
+            .ThenBy(l => l.Name)
+            .ToListAsync();
+        var rates = await _db.LineProductRates.AsNoTracking()
+            .Where(r => r.ProductRecipeId == id)
+            .ToDictionaryAsync(r => r.LineId);
+
+        return Ok(lines.Select(l =>
+        {
+            rates.TryGetValue(l.Id, out var rate);
+            return new RecipeLineRateRowDto(
+                l.Id,
+                l.Name,
+                l.Department?.Plant?.Name ?? "—",
+                l.OeeConfig?.Topology.ToString(),
+                rate?.IdealCycleTimeSec,
+                rate is not null);
         }));
     }
 

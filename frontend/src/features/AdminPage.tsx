@@ -1,4 +1,5 @@
-import { Button, Group, Stack, Tabs, Title } from '@mantine/core'
+import { useCallback, useEffect, useState } from 'react'
+import { Badge, Button, Group, Stack, Tabs, Title } from '@mantine/core'
 import {
   IconBinaryTree2,
   IconPlugConnected,
@@ -28,18 +29,35 @@ import { RecipesAdmin } from '../components/admin/RecipesAdmin'
 import { ControlTagsAdmin } from '../components/admin/ControlTagsAdmin'
 import { TemplateAuditGallery } from './builder/TemplateAuditGallery'
 import { WidgetAuditGallery } from './builder/WidgetAuditGallery'
+import { listRecipes } from '../lib/admin'
 import { useAuth } from '../lib/auth'
 import { Permissions } from '../lib/permissions'
 
 export function AdminPage() {
   const { hasPermission } = useAuth()
   const canMapTags = hasPermission(Permissions.MapTags)
+  const canManageProducts = hasPermission(Permissions.ManageProducts)
   const canViewGalleries =
     hasPermission(Permissions.ManageUsers) || hasPermission(Permissions.BuildDashboards)
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') ?? 'hierarchy'
   const recipesLineId = searchParams.get('lineId') ?? undefined
   const recipesTab = searchParams.get('recipesTab') ?? undefined
+  const [autoCreatedRecipeCount, setAutoCreatedRecipeCount] = useState(0)
+
+  const refreshAutoCreatedCount = useCallback(() => {
+    if (!canManageProducts) {
+      setAutoCreatedRecipeCount(0)
+      return
+    }
+    void listRecipes(undefined, true)
+      .then((rows) => setAutoCreatedRecipeCount(rows.length))
+      .catch(() => setAutoCreatedRecipeCount(0))
+  }, [canManageProducts])
+
+  useEffect(() => {
+    refreshAutoCreatedCount()
+  }, [refreshAutoCreatedCount, tab])
 
   function onTabChange(value: string | null) {
     const next = value ?? 'hierarchy'
@@ -108,7 +126,17 @@ export function AdminPage() {
           <Tabs.Tab value="controls" leftSection={<IconAdjustments size={16} />}>
             Control Tags
           </Tabs.Tab>
-          <Tabs.Tab value="recipes" leftSection={<IconChefHat size={16} />}>
+          <Tabs.Tab
+            value="recipes"
+            leftSection={<IconChefHat size={16} />}
+            rightSection={
+              autoCreatedRecipeCount > 0 ? (
+                <Badge size="sm" color="orange" variant="filled" circle>
+                  {autoCreatedRecipeCount}
+                </Badge>
+              ) : undefined
+            }
+          >
             Recipes
           </Tabs.Tab>
           {hasPermission(Permissions.ManageUsers) ? (
@@ -155,7 +183,11 @@ export function AdminPage() {
           <ControlTagsAdmin />
         </Tabs.Panel>
         <Tabs.Panel value="recipes" pt="md">
-          <RecipesAdmin initialLineId={recipesLineId} initialTab={recipesTab} />
+          <RecipesAdmin
+            initialLineId={recipesLineId}
+            initialTab={recipesTab}
+            onAutoCreatedCountChange={setAutoCreatedRecipeCount}
+          />
         </Tabs.Panel>
         {hasPermission(Permissions.ManageUsers) ? (
           <Tabs.Panel value="users" pt="md">

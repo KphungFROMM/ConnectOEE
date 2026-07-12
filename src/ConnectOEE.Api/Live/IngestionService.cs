@@ -59,8 +59,12 @@ public class IngestionService
         var operatorReasonByMachine = await _db.DowntimeEvents.AsNoTracking()
             .Where(e => e.MachineId != null && machineIds.Contains(e.MachineId.Value)
                 && e.EndUtc == null && e.Reason != null && e.ReasonEnteredByUserId != null)
-            .Select(e => new { MachineId = e.MachineId!.Value, e.Reason })
-            .ToDictionaryAsync(x => x.MachineId, x => x.Reason!, ct);
+            .Select(e => new { MachineId = e.MachineId!.Value, e.Reason, e.StartUtc })
+            .GroupBy(x => x.MachineId)
+            .ToDictionaryAsync(
+                g => g.Key,
+                g => g.OrderByDescending(x => x.StartUtc).First().Reason!,
+                ct);
         var signals = await _db.LogicalSignals.AsNoTracking()
             .Where(s => s.MachineId != null && machineIds.Contains(s.MachineId.Value))
             .ToListAsync(ct);
@@ -121,11 +125,16 @@ public class IngestionService
                         downtimeReasonCode = r.FaultCode ?? (int)r.Value;
                         break;
                     case SignalRole.PartId:
-                        partId = !string.IsNullOrWhiteSpace(r.TextValue)
-                            ? r.TextValue.Trim()
-                            : r.Value >= 0 && r.Value == Math.Floor(r.Value)
-                                ? ((long)r.Value).ToString()
-                                : r.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        // Prefer STRING TextValue. Empty string (decoded STRING with no chars) must NOT
+                        // fall through to numeric 0 → auto SKU "0". Only use integer codes when the
+                        // driver did not supply a text channel (TextValue is null).
+                        if (r.TextValue is not null)
+                        {
+                            var trimmed = r.TextValue.Trim();
+                            if (trimmed.Length > 0) partId = trimmed;
+                        }
+                        else if (r.Value >= 1 && r.Value == Math.Floor(r.Value) && r.Value < 1_000_000_000_000d)
+                            partId = ((long)r.Value).ToString(System.Globalization.CultureInfo.InvariantCulture);
                         break;
                 }
             }
@@ -341,8 +350,15 @@ public class IngestionService
     private async Task PersistCounterStateAsync(Guid machineId, DateTimeOffset ts, CancellationToken ct)
     {
         var row = _counter.ToPersisted(machineId, ts);
-        var existing = await _db.MachineProductionStates.FirstOrDefaultAsync(s => s.MachineId == machineId, ct);
-        if (existing is null) { _db.MachineProductionStates.Add(row); return; }
+        // Prefer Local first: a prior machine in this poll batch may already have Added a row
+        // with the same key, which FirstOrDefaultAsync can miss in some EF tracking edge cases.
+        var existing = _db.MachineProductionStates.Local.FirstOrDefault(s => s.MachineId == machineId)
+            ?? await _db.MachineProductionStates.FirstOrDefaultAsync(s => s.MachineId == machineId, ct);
+        if (existing is null)
+        {
+            _db.MachineProductionStates.Add(row);
+            return;
+        }
         existing.LineId = row.LineId;
         existing.ShiftInstanceId = row.ShiftInstanceId;
         existing.ShiftGood = row.ShiftGood;

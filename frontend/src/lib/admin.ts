@@ -336,10 +336,25 @@ export const listOperatorCatalog = (lineId: string, machineId?: string) => {
 }
 export const listOperatorPendingReasons = (lineId: string) =>
   apiGet<OperatorCatalogEntry[]>(`/api/downtime-reasons/operator-pending?lineId=${lineId}`)
-export const createDowntimeReason = (body: Omit<DowntimeReasonDto, 'id' | 'isAutoCreated' | 'needsReview'>) =>
-  apiPost<DowntimeReasonDto>('/api/downtime-reasons', body)
-export const updateDowntimeReason = (id: string, body: Omit<DowntimeReasonDto, 'id' | 'isAutoCreated' | 'needsReview'>) =>
-  apiPut<void>(`/api/downtime-reasons/${id}`, body)
+export const createDowntimeReason = (body: {
+  code?: number | null
+  reason: string
+  category: string
+  kind: string
+  lineId?: string | null
+  machineId?: string | null
+}) => apiPost<DowntimeReasonDto>('/api/downtime-reasons', body)
+export const updateDowntimeReason = (
+  id: string,
+  body: {
+    code?: number | null
+    reason: string
+    category: string
+    kind: string
+    lineId?: string | null
+    machineId?: string | null
+  },
+) => apiPut<void>(`/api/downtime-reasons/${id}`, body)
 export const deleteDowntimeReason = (id: string) => apiDelete(`/api/downtime-reasons/${id}`)
 
 /** @deprecated Use downtime reason APIs */
@@ -395,7 +410,17 @@ export interface LineRateDto {
   hasLineOverride: boolean
   isAutoCreated: boolean
 }
+export interface RecipeLineRateRowDto {
+  lineId: string
+  lineName: string
+  plantName: string
+  topology?: string | null
+  idealCycleTimeSec?: number | null
+  hasOverride: boolean
+}
 export const listLineRates = (lineId: string) => apiGet<LineRateDto[]>(`/api/recipes/lines/${lineId}/rates`)
+export const listRecipeLineRates = (recipeId: string) =>
+  apiGet<RecipeLineRateRowDto[]>(`/api/recipes/${recipeId}/line-rates`)
 export const upsertLineRate = (lineId: string, recipeId: string, body: { idealCycleTimeSec: number; targetQuantity?: number | null }) =>
   apiPut<void>(`/api/recipes/lines/${lineId}/rates/${recipeId}`, body)
 export const selectLineRecipe = (lineId: string, recipeId: string | null) =>

@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ConnectOEE — Product Brochure</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --blue: #2563EB;
+      --blue-hover: #1D4FD7;
+      --blue-soft: #EFF4FF;
+      --text: #1F2329;
+      --muted: #5B6570;
+      --line: #D8DEE6;
+      --surface: #F4F6F8;
+      --white: #FFFFFF;
+      --ok: #16A34A;
+      --warn: #D97706;
+      --bad: #DC2626;
+      --page-w: 8.5in;
+      --page-h: 11in;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      color: var(--text);
+      background: #E8ECF1;
+      font-family: "Source Sans 3", system-ui, sans-serif;
+      font-size: 11.5pt;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      background: var(--white);
+      color: var(--text);
+      border-bottom: 1px solid var(--line);
+      font-family: "IBM Plex Sans", sans-serif;
+      font-size: 13px;
+    }
+    .toolbar strong { font-weight: 600; }
+    .toolbar button, .toolbar a.btn {
+      appearance: none;
+      border: 0;
+      border-radius: 6px;
+      background: var(--blue);
+      color: #fff;
+      padding: 8px 14px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .toolbar button:hover, .toolbar a.btn:hover { background: var(--blue-hover); }
+
+    .deck {
+      max-width: calc(var(--page-w) + 48px);
+      margin: 24px auto 48px;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .page {
+      width: var(--page-w);
+      min-height: var(--page-h);
+      max-width: 100%;
+      margin: 0 auto;
+      background: var(--white);
+      box-shadow: 0 12px 40px rgba(31, 35, 41, 0.12);
+      padding: 0.55in 0.6in 0.5in;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: "IBM Plex Sans", sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .brand-mark img { width: 28px; height: 28px; border-radius: 6px; }
+    .eyebrow {
+      font-family: "IBM Plex Sans", sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin: 0 0 8px;
+    }
+    h1, h2, h3 {
+      font-family: "IBM Plex Sans", sans-serif;
+      letter-spacing: -0.025em;
+      margin: 0;
+      color: var(--text);
+    }
+    h1 { font-size: 34pt; line-height: 1.08; font-weight: 700; }
+    h2 { font-size: 22pt; line-height: 1.15; font-weight: 700; margin-bottom: 10px; }
+    h3 { font-size: 13pt; font-weight: 600; margin-bottom: 6px; }
+    p { margin: 0 0 10px; color: var(--muted); }
+    .lead { font-size: 13.5pt; color: var(--text); max-width: 38em; }
+    .page-num {
+      position: absolute;
+      right: 0.55in;
+      bottom: 0.32in;
+      font-size: 10px;
+      color: var(--muted);
+      font-family: "IBM Plex Sans", sans-serif;
+    }
+
+    .figure {
+      margin: 12px 0 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      vertical-align: middle;
+    }
+    .figure figcaption {
+      padding: 7px 10px;
+      font-size: 9.5pt;
+      color: var(--muted);
+      background: var(--surface);
+      border-top: 1px solid var(--line);
+      font-family: "IBM Plex Sans", sans-serif;
+    }
+    .figure.hero {
+      border: 0;
+      border-radius: 0;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .figure.hero img {
+      flex: 1;
+      object-fit: cover;
+      object-position: top center;
+      min-height: 4.8in;
+      max-height: 6.2in;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 12px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .feature h3 { margin-bottom: 4px; font-size: 11.5pt; }
+    .feature p { margin: 0; font-size: 10.5pt; }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 4px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-family: "IBM Plex Sans", sans-serif;
+      font-size: 10.5pt;
+      font-weight: 600;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 18px;
+      align-items: start;
+      margin-top: 8px;
+      flex: 1;
+    }
+    .split.rev { grid-template-columns: 0.95fr 1.05fr; }
+    .bullets { margin: 8px 0 0; padding-left: 1.15em; color: var(--muted); }
+    .bullets li { margin-bottom: 6px; }
+    .bullets strong { color: var(--text); }
+
+    .driver-list {
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .driver-list li {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 10.5pt;
+    }
+    .driver-list li:last-child { border-bottom: 0; }
+    .driver-list .name {
+      font-family: "IBM Plex Sans", sans-serif;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .status-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .status {
+      font-family: "IBM Plex Sans", sans-serif;
+      font-size: 10pt;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+    }
+    .status.ok { color: var(--ok); background: #ECFDF3; border-color: #BBF7D0; }
+    .status.warn { color: var(--warn); background: #FFFBEB; border-color: #FDE68A; }
+    .status.bad { color: var(--bad); background: #FEF2F2; border-color: #FECACA; }
+
+    /* Cover */
+    .page.cover {
+      padding: 0;
+      background: var(--white);
+    }
+    .cover-top {
+      padding: 0.55in 0.6in 0.35in;
+    }
+    .cover-top .tagline {
+      margin-top: 18px;
+      max-width: 16ch;
+    }
+    .cover-top .sub {
+      margin-top: 14px;
+      max-width: 34em;
+      font-size: 13pt;
+      color: var(--muted);
+    }
+    .cover-cta {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 10px 16px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 6px;
+      font-family: "IBM Plex Sans", sans-serif;
+      font-weight: 600;
+      font-size: 11pt;
+      text-decoration: none;
+    }
+    .cover .figure.hero {
+      margin: 0;
+      border-radius: 0;
+      border-top: 1px solid var(--line);
+    }
+    .cover .figure.hero figcaption {
+      border-radius: 0;
+    }
+    .cover .page-num { display: none; }
+
+    /* Close */
+    .page.close {
+      justify-content: center;
+      background:
+        linear-gradient(180deg, var(--blue-soft) 0%, var(--white) 42%, var(--white) 100%);
+      text-align: center;
+      align-items: center;
+    }
+    .page.close .brand-mark { justify-content: center; margin-bottom: 18px; }
+    .page.close h2 { font-size: 28pt; margin-bottom: 12px; }
+    .page.close .lead { margin: 0 auto 18px; }
+    .stack-chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin: 18px 0 28px;
+    }
+    .stack-chips span {
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--white);
+      font-family: "IBM Plex Sans", sans-serif;
+      font-size: 10.5pt;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .contact {
+      margin-top: 8px;
+      font-size: 12pt;
+      color: var(--text);
+      font-family: "IBM Plex Sans", sans-serif;
+    }
+
+    .theme-note {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--blue-soft);
+    }
+    .theme-note p { margin: 0; color: var(--text); font-size: 10.5pt; }
+
+    @media screen and (max-width: 920px) {
+      .deck { padding: 0 12px; }
+      .page { width: 100%; min-height: auto; padding: 28px 22px 36px; }
+      .split, .split.rev, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .driver-list li { grid-template-columns: 1fr; gap: 2px; }
+      .figure.hero img { min-height: 220px; max-height: 360px; }
+      h1 { font-size: 28pt; }
+    }
+
+    @page {
+      size: letter portrait;
+      margin: 0;
+    }
+    @media print {
+      .toolbar { display: none !important; }
+      body { background: #fff; }
+      .deck { margin: 0; padding: 0; gap: 0; max-width: none; }
+      .page {
+        box-shadow: none;
+        width: 100%;
+        min-height: 100vh;
+        height: 100vh;
+        page-break-after: always;
+        break-after: page;
+        margin: 0;
+      }
+      .page:last-child { page-break-after: auto; break-after: auto; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div><strong>ConnectOEE</strong> · Product brochure · Print → Save as PDF</div>
+    <button type="button" onclick="window.print()">Print / Save PDF</button>
+  </div>
+
+  <div class="deck">
+
+    <!-- 1 Cover -->
+    <section class="page cover">
+      <div class="cover-top">
+        <div class="brand-mark">
+          <img src="app-icon.png" alt="" />
+          ConnectOEE
+        </div>
+        <p class="eyebrow" style="margin-top:22px">On-prem OEE Accelerator</p>
+        <h1 class="tagline">See every line.<br />Know every stop.<br />Act in the shift.</h1>
+        <p class="sub">
+          Browser-based OEE for the plant floor — live PLC signals, operator action, and wall-ready dashboards
+          on your factory LAN. No cloud dependency. No learning curve.
+        </p>
+        <span class="cover-cta">Commission your first line this week</span>
+      </div>
+      <figure class="figure hero">
+        <img src="../snapshot-kit-2026-07/05-explorer/explorer-line-beverage.png" alt="Plant Explorer Beverage Line live cockpit" />
+        <figcaption>Plant Explorer — Beverage Line live cockpit (Continuous topology)</figcaption>
+      </figure>
+    </section>
+
+    <!-- 2 Platform promise -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">Why teams choose it</p>
+      <h2>Best-in-class OEE Accelerator — built for the floor</h2>
+      <p class="lead">
+        ConnectOEE is a complete on-prem accelerator: hierarchy, drivers, tag mapping, live OEE math,
+        operator workflows, kiosk walls, analytics, reports, and a true WYSIWYG dashboard builder —
+        in one Windows-hosted product.
+      </p>
+      <div class="pill-row">
+        <span class="pill">Zero learning curve</span>
+        <span class="pill">Fully on-prem</span>
+        <span class="pill">Multi-plant / line</span>
+        <span class="pill">Touch-friendly</span>
+        <span class="pill">Connection state always visible</span>
+      </div>
+      <div class="split">
+        <div>
+          <ul class="bullets">
+            <li><strong>Operators first.</strong> Status, counts, reasons, and fault ack without hunting menus.</li>
+            <li><strong>Engineer-grade mapping.</strong> Live tag browse, UDT members, role-based signal bind.</li>
+            <li><strong>Topology-aware OEE.</strong> Continuous pacing/output lines and Independent cells with shared SKU rates.</li>
+            <li><strong>Ship-ready boards.</strong> Templates and per-line Andon / Operator / Production / Quality / Supervisor packs.</li>
+            <li><strong>Offline licensing.</strong> HMAC keys activate on the factory network — no phone-home.</li>
+          </ul>
+        </div>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/06-operator/operator-grid.png" alt="Operator Station grid" />
+          <figcaption>Operator Station — live stations across the plant</figcaption>
+        </figure>
+      </div>
+      <div class="page-num">02</div>
+    </section>
+
+    <!-- 3 Feature map + themes -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">Capability map</p>
+      <h2>Everything an OEE program needs — in one suite</h2>
+      <div class="grid-3">
+        <div class="feature">
+          <h3>Live OEE &amp; APQ</h3>
+          <p>Availability, Performance, Quality with shift-aware math and ideal-rate handling.</p>
+        </div>
+        <div class="feature">
+          <h3>Reliability</h3>
+          <p>MTTR, MTBF, MTTF, MTTD and downtime analytics tied to real stop events.</p>
+        </div>
+        <div class="feature">
+          <h3>Downtime reasons</h3>
+          <p>PLC code catalog, auto-stub unknowns, operator assign when unbound.</p>
+        </div>
+        <div class="feature">
+          <h3>Shifts &amp; calendar</h3>
+          <p>Patterns, boundaries, and runtime that respect how the plant actually runs.</p>
+        </div>
+        <div class="feature">
+          <h3>Historian</h3>
+          <p>PostgreSQL + TimescaleDB time-series with rollups for hour, shift, day, and beyond.</p>
+        </div>
+        <div class="feature">
+          <h3>Reports</h3>
+          <p>Generate, history, schedules, delivery, and custom report designer.</p>
+        </div>
+        <div class="feature">
+          <h3>RBAC &amp; audit</h3>
+          <p>Role permissions, plant scope, and full audit trail for industrial accountability.</p>
+        </div>
+        <div class="feature">
+          <h3>Kiosk &amp; Present</h3>
+          <p>Fullscreen Andon walls and presentation chrome for war rooms and walks.</p>
+        </div>
+        <div class="feature">
+          <h3>Recipes &amp; rates</h3>
+          <p>Product catalog, per-line speeds, and auto-created SKU review workflows.</p>
+        </div>
+      </div>
+      <figure class="figure" style="margin-top:14px">
+        <img src="../snapshot-kit-2026-07/03-dashboards/dashboards-hub.png" alt="Dashboards hub" />
+        <figcaption>Dashboards hub — light theme (brochure uses light UI throughout)</figcaption>
+      </figure>
+      <div class="theme-note">
+        <p><strong>Light &amp; Dark mode</strong> are both built in for the floor and the control room. This brochure shows the light UI only so product screens stay consistent.</p>
+      </div>
+      <div class="page-num">03</div>
+    </section>
+
+    <!-- 4 Plant Explorer -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">Plant Explorer</p>
+      <h2>One live cockpit from fleet to machine</h2>
+      <p class="lead">
+        Drill Plant → Department → Line → Machine with health, children, and insights in one view.
+        Topology rules stay honest: Continuous lines use pacing/output; Independent cells share line+SKU rates.
+      </p>
+      <div class="grid-2">
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/05-explorer/explorer-line-beverage.png" alt="Beverage Continuous line" />
+          <figcaption>Beverage Line — Continuous</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/05-explorer/explorer-line-molding.png" alt="Molding Independent line" />
+          <figcaption>Molding Line — Independent peers</figcaption>
+        </figure>
+      </div>
+      <ul class="bullets">
+        <li><strong>Overview / Downtime / Reliability</strong> tabs at line and machine scope.</li>
+        <li><strong>Live connection health</strong> so stale data never masquerades as truth.</li>
+        <li>Proven on Connect Demo Plant: <strong>7 lines · 23 machines</strong> from a single Rockwell EIP PLC.</li>
+      </ul>
+      <div class="page-num">04</div>
+    </section>
+
+    <!-- 5 Operator -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">Operator Station</p>
+      <h2>Action at the station — not after the shift</h2>
+      <div class="split">
+        <div>
+          <p class="lead">
+            The Operator Station is built for gloves, distance, and urgency: run state, good counts,
+            reason queues, product/SKU, and fault acknowledge when writes are permitted.
+          </p>
+          <ul class="bullets">
+            <li><strong>Reason assign</strong> from a curated downtime catalog (Admin → Reasons).</li>
+            <li><strong>Product select</strong> and line-speed awareness for Performance math.</li>
+            <li><strong>Fault Ack / Reset / Start permissive</strong> through audited PLC control maps.</li>
+            <li>Deep links into recipes review when auto-created SKUs need attention.</li>
+          </ul>
+        </div>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/06-operator/operator-machine-detail-filler.png" alt="Operator machine detail" />
+          <figcaption>Machine detail — Filler</figcaption>
+        </figure>
+      </div>
+      <figure class="figure" style="margin-top:14px">
+        <img src="../snapshot-kit-2026-07/12-modals/modal-reason-assign.png" alt="Assign downtime reason modal" />
+        <figcaption>Assign downtime reason — catalog-driven, floor-ready</figcaption>
+      </figure>
+      <div class="page-num">05</div>
+    </section>
+
+    <!-- 6 Andon -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">Andon &amp; walls</p>
+      <h2>Kiosk and Present modes that fill the room</h2>
+      <p class="lead">
+        Ship Andon boards per line, then open them fullscreen for the wall — or Present with chrome for
+        leaders walking the floor. Same widgets, wall-fit geometry, 1080p-aware profiles.
+      </p>
+      <div class="grid-2">
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/04-kiosk-present/kiosk-beverage-andon-light.png" alt="Kiosk Andon" />
+          <figcaption>Kiosk — Beverage Line Andon</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/03-dashboards/dashboard-beverage-andon.png" alt="Andon dashboard" />
+          <figcaption>Dashboard view — Line Andon</figcaption>
+        </figure>
+      </div>
+      <ul class="bullets">
+        <li><strong>Anonymous kiosk</strong> stays read-only; signed-in operators can act when boards include interactive widgets.</li>
+        <li>Templates prove nesting + interactive pads on Operator Floor and Line Andon.</li>
+      </ul>
+      <div class="page-num">06</div>
+    </section>
+
+    <!-- 7 Drivers -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">PLC connectivity</p>
+      <h2>Multi-driver stack — modular, live, honest</h2>
+      <p class="lead">
+        A shared <strong>IPlcDriver</strong> abstraction feeds ingestion and OEE. Add protocols without rewriting the product.
+        Connection health is first-class: Connected → Stale → Faulted.
+      </p>
+      <ul class="driver-list">
+        <li>
+          <span class="name">Rockwell EtherNet/IP</span>
+          <span>libplctag — ControlLogix / CompactLogix / GuardLogix, MicroLogix, Micro800. Live tag browse, UDT expansion, audited writes (Ack / Reset / Start permissive).</span>
+        </li>
+        <li>
+          <span class="name">Modbus TCP</span>
+          <span>FluentModbus — holding/input registers, coils, discretes; classic address discovery and float-word pairing.</span>
+        </li>
+        <li>
+          <span class="name">OPC UA</span>
+          <span>OPC Foundation client — hierarchical browse from Objects; anonymous on-prem commissioning with local PKI.</span>
+        </li>
+        <li>
+          <span class="name">Mock / Simulator</span>
+          <span>Full lab demos without hardware; controllable for Ack/Reset/Start permissive round-trips.</span>
+        </li>
+      </ul>
+      <div class="status-row">
+        <span class="status ok">Connected</span>
+        <span class="status warn">Stale</span>
+        <span class="status bad">Faulted</span>
+      </div>
+      <div class="grid-2" style="margin-top:14px">
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/10-admin/admin-plc.png" alt="PLC connections admin" />
+          <figcaption>Admin — PLC connections &amp; test</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/10-admin/admin-tags.png" alt="Tag mapping admin" />
+          <figcaption>Admin — live tag browse &amp; bind</figcaption>
+        </figure>
+      </div>
+      <p style="margin-top:10px;font-size:10pt">Architecture leaves a clear path for Siemens S7 as a future driver — without touching OEE or UI modules.</p>
+      <div class="page-num">07</div>
+    </section>
+
+    <!-- 8 Commission -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">Guided commissioning</p>
+      <h2>From empty server to live OEE — one wizard</h2>
+      <p class="lead">
+        Ten guided steps: administrator, plant, hierarchy, PLC, tags, shifts, dashboards, and readiness.
+        Engineers map Run State + Good Count and open Plant Explorer the same day.
+      </p>
+      <div class="grid-3">
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/02-wizard/wizard-01.png" alt="Setup wizard" />
+          <figcaption>Setup wizard</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/10-admin/admin-hierarchy.png" alt="Plant hierarchy" />
+          <figcaption>Plant hierarchy</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/10-admin/admin-system.png" alt="System commissioning" />
+          <figcaption>System commissioning</figcaption>
+        </figure>
+      </div>
+      <ul class="bullets">
+        <li>Multi-PLC per line; machines without a real connection can fall back to Mock for continuous demos.</li>
+        <li>Shifts, fault catalogs, control tags, and recipes configured in Admin after the wizard.</li>
+      </ul>
+      <div class="page-num">08</div>
+    </section>
+
+    <!-- 9 Dashboards -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">Dashboards &amp; templates</p>
+      <h2>Boards that ship with the plant</h2>
+      <p class="lead">
+        Apply templates or generate per-line packs: Andon, Operator Floor, Production, Quality, Supervisor —
+        plus Plant Overview, Analytics Starter, and Maintenance Wall. <strong>111 widgets</strong> across OEE,
+        downtime, production, and status families.
+      </p>
+      <div class="grid-2">
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/03-dashboards/dashboards-hub.png" alt="Dashboards hub" />
+          <figcaption>Dashboards hub — scope + filters</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/03-dashboards/dashboard-beverage-supervisor.png" alt="Supervisor dashboard" />
+          <figcaption>Beverage Line — Supervisor board</figcaption>
+        </figure>
+      </div>
+      <div class="pill-row">
+        <span class="pill">Andon</span>
+        <span class="pill">Operator Floor</span>
+        <span class="pill">Production</span>
+        <span class="pill">Quality</span>
+        <span class="pill">Supervisor</span>
+        <span class="pill">Plant Overview</span>
+        <span class="pill">Analytics</span>
+        <span class="pill">Maintenance</span>
+      </div>
+      <div class="page-num">09</div>
+    </section>
+
+    <!-- 10 Builder -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">WYSIWYG builder</p>
+      <h2>Design walls like a product team — save like an engineer</h2>
+      <p class="lead">
+        A true drag-and-drop designer: categorized palette, 12-column grid, Wall 1080p / Kiosk 1080p / Freeform
+        display profiles, nested containers, undo/redo, preview, and properties for Data, Widget, and Layout.
+      </p>
+      <div class="grid-3">
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/09-builder/builder-edit.png" alt="Builder edit canvas" />
+          <figcaption>Edit canvas</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/09-builder/builder-template-gallery-drawer.png" alt="Template gallery" />
+          <figcaption>Template gallery</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/09-builder/builder-preview-mode.png" alt="Builder preview" />
+          <figcaption>Preview / wall-fit</figcaption>
+        </figure>
+      </div>
+      <ul class="bullets">
+        <li><strong>Palette drop at cursor</strong> with snap, collision prevention, and click-to-add.</li>
+        <li><strong>Nesting</strong> — containers and tab panels with one nesting level; cascade delete/duplicate.</li>
+        <li><strong>Write sandbox</strong> — interactive PLC widgets blocked in builder/gallery; live on authenticated dashboards.</li>
+        <li>Keyboard: undo/redo, duplicate, delete, arrow nudge / Shift-resize.</li>
+      </ul>
+      <div class="page-num">10</div>
+    </section>
+
+    <!-- 11 Analytics / security -->
+    <section class="page">
+      <div class="brand-mark"><img src="app-icon.png" alt="" /> ConnectOEE</div>
+      <p class="eyebrow" style="margin-top:18px">Analytics · Reports · Security</p>
+      <h2>From live second to scheduled PDF</h2>
+      <div class="grid-3">
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/07-analytics/analytics-plant-overview.png" alt="Analytics plant overview" />
+          <figcaption>Analytics — plant overview</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/08-reports/reports-generate.png" alt="Reports generate" />
+          <figcaption>Reports — generate &amp; schedule</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="../snapshot-kit-2026-07/10-admin/admin-license.png" alt="License activation" />
+          <figcaption>Admin — offline license</figcaption>
+        </figure>
+      </div>
+      <div class="grid-2" style="margin-top:14px">
+        <div class="feature">
+          <h3>Analytics</h3>
+          <p>Scope by plant, line, or machine. Downtime, production, and reliability tabs with time-range context and event drill-through when data exists.</p>
+        </div>
+        <div class="feature">
+          <h3>Reports</h3>
+          <p>On-demand PDF, history, schedules, delivery, and custom designer — QuestPDF-backed for consistent plant documents.</p>
+        </div>
+        <div class="feature">
+          <h3>RBAC &amp; audit</h3>
+          <p>Identity + JWT, permission layers, plant scoping, and audit logs for every sensitive change and write.</p>
+        </div>
+        <div class="feature">
+          <h3>Licensing</h3>
+          <p>Offline HMAC-SHA256 keys (<code>CONNECT-OEE-</code> prefix), trial with feature limits, activation in Admin → License.</p>
+        </div>
+      </div>
+      <div class="page-num">11</div>
+    </section>
+
+    <!-- 12 Close -->
+    <section class="page close">
+      <div class="brand-mark">
+        <img src="app-icon.png" alt="" />
+        ConnectOEE
+      </div>
+      <p class="eyebrow">On-prem · Browser · Industrial</p>
+      <h2>Commission your first line this week</h2>
+      <p class="lead">
+        Start the setup wizard, connect the PLC, map Run State and Good Count, open Plant Explorer —
+        then put Andon on the wall.
+      </p>
+      <div class="stack-chips">
+        <span>.NET 8 Windows Service</span>
+        <span>React + TypeScript</span>
+        <span>PostgreSQL + TimescaleDB</span>
+        <span>SignalR live</span>
+        <span>Rockwell · Modbus · OPC UA</span>
+      </div>
+      <p class="contact">Connect Software Suite · ConnectOEE</p>
+      <p style="margin-top:8px;font-size:10pt;color:var(--muted)">
+        Open this file in a browser → Print → Save as PDF · Figures from snapshot kit Jul 2026
+      </p>
+      <div class="page-num">12</div>
+    </section>
+
+  </div>
+</body>
+</html>

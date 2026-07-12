@@ -30,7 +30,7 @@ export function ReasonAssignModal({
   onAssigned,
   onAssignedReason,
 }: Props) {
-  const { byCategory, options } = useDowntimeReasonCatalog(lineId, event?.machineId ?? undefined)
+  const { byCategory, options, catalogEmpty, usingFallback } = useDowntimeReasonCatalog(lineId, event?.machineId ?? undefined)
   const [otherReason, setOtherReason] = useState('')
   const [otherCategory, setOtherCategory] = useState('Breakdown')
 
@@ -113,7 +113,18 @@ export function ReasonAssignModal({
             </Tabs.Panel>
           </Tabs>
 
-          {categories.length === 0 ? (
+          {catalogEmpty ? (
+            <Text size="sm" c="dimmed">
+              No quick reasons configured. Admins can add them under Admin → Reason catalog.
+            </Text>
+          ) : null}
+          {usingFallback ? (
+            <Text size="sm" c="orange">
+              Using built-in defaults — reason catalog unavailable. Check Admin → Reason catalog after reconnecting.
+            </Text>
+          ) : null}
+
+          {categories.length === 0 && options.length > 0 ? (
             <ReasonButtonGrid items={options} onPick={(r) => assign(r.label, r.category)} />
           ) : null}
         </Stack>

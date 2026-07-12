@@ -140,7 +140,11 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
             foreach (var group in _signals.GroupBy(s => s.TagPath, StringComparer.OrdinalIgnoreCase))
             {
                 var path = group.Key;
-                var dt = group.First().DataType;
+                // PartId / explicit String bindings must use STRING decode even if TagDefinition
+                // was stored as Unknown/Udt from browse.
+                var dt = group.Any(s => s.DataType == TagDataType.String || s.Role == SignalRole.PartId)
+                    ? TagDataType.String
+                    : group.First().DataType;
                 var tag = NewTag(path, dt);
                 await tag.InitializeAsync(ct);
                 _readTags[path] = tag;
@@ -184,19 +188,20 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
         var anyFailure = false;
 
         // Read each distinct tag once, then fan out to every binding on that path.
-        var values = new Dictionary<string, (double Value, ValueQuality Quality)>(StringComparer.OrdinalIgnoreCase);
+        var values = new Dictionary<string, (double Value, string? Text, ValueQuality Quality)>(StringComparer.OrdinalIgnoreCase);
         foreach (var (path, tag) in _readTags)
         {
             try
             {
                 await tag.ReadAsync(ct);
-                values[path] = (ReadValue(tag, FindDataType(path)), ValueQuality.Good);
+                var sample = ReadSample(tag, FindDataType(path));
+                values[path] = (sample.Numeric, sample.Text, ValueQuality.Good);
                 anySuccess = true;
             }
             catch (Exception ex)
             {
                 _logger.LogDebug(ex, "Rockwell read failed for {Path}", path);
-                values[path] = (0, ValueQuality.Bad);
+                values[path] = (0, null, ValueQuality.Bad);
                 anyFailure = true;
             }
         }
@@ -206,7 +211,14 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
             if (!values.TryGetValue(b.TagPath, out var v)) continue;
             RunState? rs = null;
             int? fault = b.Role == SignalRole.DowntimeReason ? (int)v.Value : null;
-            readings.Add(new SignalReading(b.MachineId, b.LineId, b.Role, v.Value, rs, fault, now, v.Quality));
+            // STRING / PartId need TextValue. Pass "" (not null) when DataType is String so ingest
+            // can tell "empty STRING" apart from "no text channel" and avoid SKU "0".
+            string? text = null;
+            if (b.DataType == TagDataType.String)
+                text = v.Text ?? string.Empty;
+            else if (b.Role == SignalRole.PartId)
+                text = v.Text;
+            readings.Add(new SignalReading(b.MachineId, b.LineId, b.Role, v.Value, rs, fault, now, v.Quality, text));
         }
 
         UpdateStateAfterPoll(anySuccess, anyFailure);
@@ -787,10 +799,13 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
                 dataType = InferPcccDataType(path);
             try
             {
-                var tag = await GetPreviewTagAsync(path, ct);
+                var tag = await GetPreviewTagAsync(path, dataType, ct);
                 await tag.ReadAsync(ct);
-                var v = ReadValue(tag, dataType);
-                samples.Add(new TagValueSample(path, v, ValueQuality.Good, now, FormatDisplay(v, dataType)));
+                var sample = ReadSample(tag, dataType);
+                var display = dataType == TagDataType.String
+                    ? (sample.Text ?? string.Empty)
+                    : FormatDisplay(sample.Numeric, dataType);
+                samples.Add(new TagValueSample(path, sample.Numeric, ValueQuality.Good, now, display));
             }
             catch (Exception ex)
             {
@@ -834,6 +849,17 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
         {
             var udtId = (ushort)(abType & 0x0FFF);
             var udt = await GetUdtAsync(udtId, udtCache, ct);
+
+            // Logix STRING is a predefined struct (LEN + DATA[82]), but operators map and
+            // preview it as one text value — same as Studio's condensed STRING display.
+            // Without this, PartId shows an expand chevron and never gets a live preview.
+            if (arrayLength == 0 && IsLogixStringUdt(udt))
+            {
+                return new BrowseTag(
+                    name, fullPath, TagDataType.String, null, 0, "STRING",
+                    Bindable: true, Array.Empty<BrowseTag>());
+            }
+
             var children = new List<BrowseTag>();
             if (udt?.Fields is not null)
             {
@@ -851,6 +877,22 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
         var typeLabel = CipTypeLabel(abType);
         return new BrowseTag(name, fullPath, arrayLength > 0 ? TagDataType.Array : dataType, null, arrayLength, typeLabel,
             Bindable: arrayLength == 0 && dataType != TagDataType.Unknown, Array.Empty<BrowseTag>());
+    }
+
+    /// <summary>True for Rockwell's built-in STRING template (not arbitrary UDTs that happen to hold text).</summary>
+    private static bool IsLogixStringUdt(UdtInfo? udt)
+    {
+        if (udt is null) return false;
+        var name = udt.Name?.Trim();
+        if (string.IsNullOrEmpty(name)) return false;
+        if (name.Equals("STRING", StringComparison.OrdinalIgnoreCase)) return true;
+        // Custom fixed-length string templates from some RSLogix projects (STRING_16, …).
+        if (name.StartsWith("STRING_", StringComparison.OrdinalIgnoreCase))
+        {
+            var suffix = name["STRING_".Length..];
+            if (suffix.Length > 0 && suffix.All(char.IsDigit)) return true;
+        }
+        return false;
     }
 
     private static string? CipTypeLabel(ushort abType)
@@ -937,6 +979,7 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
     {
         TagDataType.Real => 4,
         TagDataType.Dint => 4,
+        TagDataType.String => 88, // Logix STRING: DINT LEN + 82 DATA + 2 pad
         _ => 2, // INT / BOOL bit-in-word
     };
 
@@ -992,10 +1035,12 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
         return tag;
     }
 
-    private async Task<Tag> GetPreviewTagAsync(string path, CancellationToken ct)
+    private async Task<Tag> GetPreviewTagAsync(string path, TagDataType dataType, CancellationToken ct)
     {
         if (_previewTags.TryGetValue(path, out var existing)) return existing;
-        var dt = FindDataType(path);
+        var dt = dataType != TagDataType.Unknown
+            ? dataType
+            : FindDataType(path);
         if (dt == TagDataType.Unknown) dt = InferPcccDataType(path);
         var tag = NewTag(path, dt);
         await tag.InitializeAsync(ct);
@@ -1004,8 +1049,57 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
     }
 
     private TagDataType FindDataType(string path)
-        => _signals.FirstOrDefault(s => string.Equals(s.TagPath, path, StringComparison.OrdinalIgnoreCase))?.DataType
-           ?? TagDataType.Unknown;
+    {
+        var bindings = _signals.Where(s => string.Equals(s.TagPath, path, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (bindings.Count == 0) return TagDataType.Unknown;
+        if (bindings.Any(s => s.DataType == TagDataType.String || s.Role == SignalRole.PartId))
+            return TagDataType.String;
+        return bindings[0].DataType;
+    }
+
+    /// <summary>
+    /// Decode a tag buffer into numeric + optional text. Logix STRING uses libplctag
+    /// <see cref="Tag.GetString"/> (DINT LEN + char DATA); never read STRING as float/int.
+    /// </summary>
+    private static (double Numeric, string? Text) ReadSample(Tag tag, TagDataType dt)
+    {
+        if (dt == TagDataType.String)
+        {
+            var text = ReadStringValue(tag);
+            return (0, text);
+        }
+
+        return (ReadValue(tag, dt), null);
+    }
+
+    private static string ReadStringValue(Tag tag)
+    {
+        // ControlLogix defaults already configure STRING layout — do NOT set String* attrs
+        // manually (libplctag returns ErrorBadParam). Prefer GetString; if empty, decode LEN+DATA.
+        string? fromApi = null;
+        try { fromApi = tag.GetString(0); }
+        catch { /* fall through to manual */ }
+
+        if (!string.IsNullOrEmpty(fromApi))
+            return fromApi;
+
+        try
+        {
+            var len = tag.GetInt32(0);
+            if (len <= 0) return fromApi ?? string.Empty;
+            var capacity = Math.Max(0, tag.GetSize() - 4);
+            len = Math.Min(len, Math.Min(capacity, 82));
+            if (len <= 0) return string.Empty;
+            var buf = new byte[len];
+            for (var i = 0; i < len; i++)
+                buf[i] = tag.GetUInt8(4 + i);
+            return System.Text.Encoding.ASCII.GetString(buf).TrimEnd('\0');
+        }
+        catch
+        {
+            return fromApi ?? string.Empty;
+        }
+    }
 
     private static double ReadValue(Tag tag, TagDataType dt) => dt switch
     {
@@ -1015,6 +1109,7 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
         TagDataType.Dint => ReadDintFlexible(tag),
         TagDataType.Time => tag.GetInt32(0),
         TagDataType.Real => tag.GetFloat32(0),
+        TagDataType.String => 0, // use ReadSample / ReadStringValue
         // Unknown: best-effort. REAL and DINT are the same width; try REAL then fall back.
         _ => TryGetReal(tag),
     };
@@ -1044,7 +1139,7 @@ public sealed class RockwellDriver : IPlcDriver, ITagBrowsingDriver, IControllab
         TagDataType.Dint => ((long)value).ToString(),
         TagDataType.Time => FormatTimeMs((long)value),
         TagDataType.Real => value.ToString("0.###"),
-        TagDataType.String => "-",
+        TagDataType.String => null, // display comes from ReadSample.Text
         _ => value.ToString("0.###"),
     };
 

@@ -1,0 +1,188 @@
+machine,line,Role,tag_path,DataType
+Assemble,Automotive Line,0,Auto_Assemble.RunState,3
+Assemble,Automotive Line,1,Auto_Assemble.Counters.Good,3
+Assemble,Automotive Line,2,Auto_Assemble.Counters.Reject,3
+Assemble,Automotive Line,5,Auto_Assemble.FaultCode,3
+Assemble,Automotive Line,6,Auto_Assemble.PartId,5
+Assemble,Automotive Line,7,Auto_Assemble.Status.Running,1
+Assemble,Automotive Line,8,Auto_Assemble.Status.Idle,1
+Assemble,Automotive Line,9,Auto_Assemble.Status.Faulted,1
+Test,Automotive Line,0,Auto_Test.RunState,3
+Test,Automotive Line,1,Auto_Test.Counters.Good,3
+Test,Automotive Line,2,Auto_Test.Counters.Reject,3
+Test,Automotive Line,5,Auto_Test.FaultCode,3
+Test,Automotive Line,6,Auto_Test.PartId,5
+Test,Automotive Line,7,Auto_Test.Status.Running,1
+Test,Automotive Line,8,Auto_Test.Status.Idle,1
+Test,Automotive Line,9,Auto_Test.Status.Faulted,1
+Test,Automotive Line,10,Auto_Test.Counters.Rework,3
+Weld,Automotive Line,0,Auto_Weld.RunState,3
+Weld,Automotive Line,1,Auto_Weld.Counters.Good,3
+Weld,Automotive Line,2,Auto_Weld.Counters.Reject,3
+Weld,Automotive Line,5,Auto_Weld.FaultCode,3
+Weld,Automotive Line,6,Auto_Weld.PartId,5
+Weld,Automotive Line,7,Auto_Weld.Status.Running,1
+Weld,Automotive Line,8,Auto_Weld.Status.Idle,1
+Weld,Automotive Line,9,Auto_Weld.Status.Faulted,1
+Capper,Beverage Line,0,Bev_Capper.RunState,3
+Capper,Beverage Line,1,Bev_Capper.Counters.Good,3
+Capper,Beverage Line,2,Bev_Capper.Counters.Reject,3
+Capper,Beverage Line,5,Bev_Capper.FaultCode,3
+Capper,Beverage Line,6,Bev_Capper.PartId,5
+Capper,Beverage Line,7,Bev_Capper.Status.Running,1
+Capper,Beverage Line,8,Bev_Capper.Status.Idle,1
+Capper,Beverage Line,9,Bev_Capper.Status.Faulted,1
+Filler,Beverage Line,0,Bev_Filler.RunState,3
+Filler,Beverage Line,1,Bev_Filler.Counters.Good,3
+Filler,Beverage Line,2,Bev_Filler.Counters.Reject,3
+Filler,Beverage Line,5,Bev_Filler.FaultCode,3
+Filler,Beverage Line,6,Bev_Filler.PartId,5
+Filler,Beverage Line,7,Bev_Filler.Status.Running,1
+Filler,Beverage Line,8,Bev_Filler.Status.Idle,1
+Filler,Beverage Line,9,Bev_Filler.Status.Faulted,1
+Infeed,Beverage Line,0,Bev_Infeed.RunState,3
+Infeed,Beverage Line,1,Bev_Infeed.Counters.Good,3
+Infeed,Beverage Line,2,Bev_Infeed.Counters.Reject,3
+Infeed,Beverage Line,5,Bev_Infeed.FaultCode,3
+Infeed,Beverage Line,6,Bev_Infeed.PartId,5
+Infeed,Beverage Line,7,Bev_Infeed.Status.Running,1
+Infeed,Beverage Line,8,Bev_Infeed.Status.Idle,1
+Infeed,Beverage Line,9,Bev_Infeed.Status.Faulted,1
+Labeler,Beverage Line,0,Bev_Labeler.RunState,3
+Labeler,Beverage Line,1,Bev_Labeler.Counters.Good,3
+Labeler,Beverage Line,2,Bev_Labeler.Counters.Reject,3
+Labeler,Beverage Line,5,Bev_Labeler.FaultCode,3
+Labeler,Beverage Line,6,Bev_Labeler.PartId,5
+Labeler,Beverage Line,7,Bev_Labeler.Status.Running,1
+Labeler,Beverage Line,8,Bev_Labeler.Status.Idle,1
+Labeler,Beverage Line,9,Bev_Labeler.Status.Faulted,1
+Rewind,Film Converting Line,0,Film_Rewind.RunState,3
+Rewind,Film Converting Line,1,Film_Rewind.Counters.Good,3
+Rewind,Film Converting Line,2,Film_Rewind.Counters.Reject,3
+Rewind,Film Converting Line,5,Film_Rewind.FaultCode,3
+Rewind,Film Converting Line,6,Film_Rewind.PartId,5
+Rewind,Film Converting Line,7,Film_Rewind.Status.Running,1
+Rewind,Film Converting Line,8,Film_Rewind.Status.Idle,1
+Rewind,Film Converting Line,9,Film_Rewind.Status.Faulted,1
+Slitter,Film Converting Line,0,Film_Slitter.RunState,3
+Slitter,Film Converting Line,1,Film_Slitter.Counters.Good,3
+Slitter,Film Converting Line,2,Film_Slitter.Counters.Reject,3
+Slitter,Film Converting Line,5,Film_Slitter.FaultCode,3
+Slitter,Film Converting Line,6,Film_Slitter.PartId,5
+Slitter,Film Converting Line,7,Film_Slitter.Status.Running,1
+Slitter,Film Converting Line,8,Film_Slitter.Status.Idle,1
+Slitter,Film Converting Line,9,Film_Slitter.Status.Faulted,1
+Treat,Film Converting Line,0,Film_Treat.RunState,3
+Treat,Film Converting Line,1,Film_Treat.Counters.Good,3
+Treat,Film Converting Line,2,Film_Treat.Counters.Reject,3
+Treat,Film Converting Line,5,Film_Treat.FaultCode,3
+Treat,Film Converting Line,6,Film_Treat.PartId,5
+Treat,Film Converting Line,7,Film_Treat.Status.Running,1
+Treat,Film Converting Line,8,Film_Treat.Status.Idle,1
+Treat,Film Converting Line,9,Film_Treat.Status.Faulted,1
+Unwind,Film Converting Line,0,Film_Unwind.RunState,3
+Unwind,Film Converting Line,1,Film_Unwind.Counters.Good,3
+Unwind,Film Converting Line,2,Film_Unwind.Counters.Reject,3
+Unwind,Film Converting Line,5,Film_Unwind.FaultCode,3
+Unwind,Film Converting Line,6,Film_Unwind.PartId,5
+Unwind,Film Converting Line,7,Film_Unwind.Status.Running,1
+Unwind,Film Converting Line,8,Film_Unwind.Status.Idle,1
+Unwind,Film Converting Line,9,Film_Unwind.Status.Faulted,1
+Cooker,Food Line,0,Food_Cooker.RunState,3
+Cooker,Food Line,1,Food_Cooker.Counters.Good,3
+Cooker,Food Line,2,Food_Cooker.Counters.Reject,3
+Cooker,Food Line,5,Food_Cooker.FaultCode,3
+Cooker,Food Line,6,Food_Cooker.PartId,5
+Cooker,Food Line,7,Food_Cooker.Status.Running,1
+Cooker,Food Line,8,Food_Cooker.Status.Idle,1
+Cooker,Food Line,9,Food_Cooker.Status.Faulted,1
+Mixer,Food Line,0,Food_Mixer.RunState,3
+Mixer,Food Line,1,Food_Mixer.Counters.Good,3
+Mixer,Food Line,2,Food_Mixer.Counters.Reject,3
+Mixer,Food Line,5,Food_Mixer.FaultCode,3
+Mixer,Food Line,6,Food_Mixer.PartId,5
+Mixer,Food Line,7,Food_Mixer.Status.Running,1
+Mixer,Food Line,8,Food_Mixer.Status.Idle,1
+Mixer,Food Line,9,Food_Mixer.Status.Faulted,1
+Packer,Food Line,0,Food_Packer.RunState,3
+Packer,Food Line,1,Food_Packer.Counters.Good,3
+Packer,Food Line,2,Food_Packer.Counters.Reject,3
+Packer,Food Line,5,Food_Packer.FaultCode,3
+Packer,Food Line,6,Food_Packer.PartId,5
+Packer,Food Line,7,Food_Packer.Status.Running,1
+Packer,Food Line,8,Food_Packer.Status.Idle,1
+Packer,Food Line,9,Food_Packer.Status.Faulted,1
+Leveler,Metal Coil Line,0,Coil_Leveler.RunState,3
+Leveler,Metal Coil Line,1,Coil_Leveler.Counters.Good,3
+Leveler,Metal Coil Line,2,Coil_Leveler.Counters.Reject,3
+Leveler,Metal Coil Line,5,Coil_Leveler.FaultCode,3
+Leveler,Metal Coil Line,6,Coil_Leveler.PartId,5
+Leveler,Metal Coil Line,7,Coil_Leveler.Status.Running,1
+Leveler,Metal Coil Line,8,Coil_Leveler.Status.Idle,1
+Leveler,Metal Coil Line,9,Coil_Leveler.Status.Faulted,1
+Recoil,Metal Coil Line,0,Coil_Recoil.RunState,3
+Recoil,Metal Coil Line,1,Coil_Recoil.Counters.Good,3
+Recoil,Metal Coil Line,2,Coil_Recoil.Counters.Reject,3
+Recoil,Metal Coil Line,5,Coil_Recoil.FaultCode,3
+Recoil,Metal Coil Line,6,Coil_Recoil.PartId,5
+Recoil,Metal Coil Line,7,Coil_Recoil.Status.Running,1
+Recoil,Metal Coil Line,8,Coil_Recoil.Status.Idle,1
+Recoil,Metal Coil Line,9,Coil_Recoil.Status.Faulted,1
+Shear,Metal Coil Line,0,Coil_Shear.RunState,3
+Shear,Metal Coil Line,1,Coil_Shear.Counters.Good,3
+Shear,Metal Coil Line,2,Coil_Shear.Counters.Reject,3
+Shear,Metal Coil Line,5,Coil_Shear.FaultCode,3
+Shear,Metal Coil Line,6,Coil_Shear.PartId,5
+Shear,Metal Coil Line,7,Coil_Shear.Status.Running,1
+Shear,Metal Coil Line,8,Coil_Shear.Status.Idle,1
+Shear,Metal Coil Line,9,Coil_Shear.Status.Faulted,1
+Uncoil,Metal Coil Line,0,Coil_Uncoil.RunState,3
+Uncoil,Metal Coil Line,1,Coil_Uncoil.Counters.Good,3
+Uncoil,Metal Coil Line,2,Coil_Uncoil.Counters.Reject,3
+Uncoil,Metal Coil Line,5,Coil_Uncoil.FaultCode,3
+Uncoil,Metal Coil Line,6,Coil_Uncoil.PartId,5
+Uncoil,Metal Coil Line,7,Coil_Uncoil.Status.Running,1
+Uncoil,Metal Coil Line,8,Coil_Uncoil.Status.Idle,1
+Uncoil,Metal Coil Line,9,Coil_Uncoil.Status.Faulted,1
+Press 1,Molding Line,0,Mold_Press1.RunState,3
+Press 1,Molding Line,1,Mold_Press1.Counters.Good,3
+Press 1,Molding Line,2,Mold_Press1.Counters.Reject,3
+Press 1,Molding Line,5,Mold_Press1.FaultCode,3
+Press 1,Molding Line,6,Mold_Press1.PartId,5
+Press 1,Molding Line,7,Mold_Press1.Status.Running,1
+Press 1,Molding Line,8,Mold_Press1.Status.Idle,1
+Press 1,Molding Line,9,Mold_Press1.Status.Faulted,1
+Press 2,Molding Line,0,Mold_Press2.RunState,3
+Press 2,Molding Line,1,Mold_Press2.Counters.Good,3
+Press 2,Molding Line,2,Mold_Press2.Counters.Reject,3
+Press 2,Molding Line,5,Mold_Press2.FaultCode,3
+Press 2,Molding Line,6,Mold_Press2.PartId,5
+Press 2,Molding Line,7,Mold_Press2.Status.Running,1
+Press 2,Molding Line,8,Mold_Press2.Status.Idle,1
+Press 2,Molding Line,9,Mold_Press2.Status.Faulted,1
+Cartoner,Pharma Line,0,Pharma_Cartoner.RunState,3
+Cartoner,Pharma Line,1,Pharma_Cartoner.Counters.Good,3
+Cartoner,Pharma Line,2,Pharma_Cartoner.Counters.Reject,3
+Cartoner,Pharma Line,5,Pharma_Cartoner.FaultCode,3
+Cartoner,Pharma Line,6,Pharma_Cartoner.PartId,5
+Cartoner,Pharma Line,7,Pharma_Cartoner.Status.Running,1
+Cartoner,Pharma Line,8,Pharma_Cartoner.Status.Idle,1
+Cartoner,Pharma Line,9,Pharma_Cartoner.Status.Faulted,1
+Filler,Pharma Line,0,Pharma_Filler.RunState,3
+Filler,Pharma Line,1,Pharma_Filler.Counters.Good,3
+Filler,Pharma Line,2,Pharma_Filler.Counters.Reject,3
+Filler,Pharma Line,5,Pharma_Filler.FaultCode,3
+Filler,Pharma Line,6,Pharma_Filler.PartId,5
+Filler,Pharma Line,7,Pharma_Filler.Status.Running,1
+Filler,Pharma Line,8,Pharma_Filler.Status.Idle,1
+Filler,Pharma Line,9,Pharma_Filler.Status.Faulted,1
+Inspector,Pharma Line,0,Pharma_Inspector.RunState,3
+Inspector,Pharma Line,1,Pharma_Inspector.Counters.Good,3
+Inspector,Pharma Line,2,Pharma_Inspector.Counters.Reject,3
+Inspector,Pharma Line,5,Pharma_Inspector.FaultCode,3
+Inspector,Pharma Line,6,Pharma_Inspector.PartId,5
+Inspector,Pharma Line,7,Pharma_Inspector.Status.Running,1
+Inspector,Pharma Line,8,Pharma_Inspector.Status.Idle,1
+Inspector,Pharma Line,9,Pharma_Inspector.Status.Faulted,1
+Inspector,Pharma Line,10,Pharma_Inspector.Counters.Rework,3
+(186 rows)
